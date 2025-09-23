@@ -25,6 +25,7 @@ class OutcomeModelRepository:
         self._repository = {
                           OutcomeType.WMH: WMHModelRepository(),
                           OutcomeType.DEMENTIA: DementiaModelRepository(wmhSpecific = self._wmhSpecific),
+                          OutcomeType.EPILEPSY: EpilepsyModelRepository(),
                           OutcomeType.COGNITION: CognitionModelRepository(),
                           OutcomeType.CI: CIModelRepository(),
                           OutcomeType.QUALITYADJUSTED_LIFE_YEARS: QALYModelRepository(),
