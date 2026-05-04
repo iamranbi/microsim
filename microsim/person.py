@@ -22,18 +22,6 @@ from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.modality import Modality
 from microsim.outcomes.wmh_severity import WMHSeverity
 
-# luciana-tag...lne thing that tripped me up was probable non clear communication regarding "waves"
-# so, i'm going to spell it out here and try to make the code consistent.
-# a patient starts in teh simulation prior to a wave with their baseline attribute statuses(i.e subscript [0])
-# wave "1" refers to the transition from subscript[0] to subscript[1]
-# wave "2" the transition from subscript[1] to subscript[2]
-# thus, the pateint's status at the start of wave 1 is represented by subscript[0]
-# and the patient status at the end of wave 1 is represtened by subscript[1]
-# if a patient has an event during a wave, that means they will not have the status at the start of the wave
-# and they will have the status at the end of the wave.
-# so, if a patient has an event during wave 1, their status would be Negatve at subscript[0] and
-# Positive at subscript[1]
-
 class Person:
     """Person is using risk factors and demographics based off NHANES.
        A Person-instance is essentially a data structure that holds all person-related data, the past and the present.
@@ -212,9 +200,7 @@ class Person:
             
     def advance_outcomes(self, outcomeModelRepository):
         """Predict the outcomes of the person for the next year (1 year only)."""
-        #With outcomes the situation is complex, because the loop needs to go over the outcomes in a specific order
-        #which means I cannot just use the keys of a dictionary, the outcomes will need to be set in a list
-        for outcomeType in self.get_outcomes_in_order():
+        for outcomeType in self.get_outcomes_in_order(): #loop needs to go over the outcomes in a specific order
             outcome = outcomeModelRepository._repository[outcomeType].select_outcome_model_for_person(self).get_next_outcome(self)
             self.add_outcome(outcome)
 
@@ -245,6 +231,7 @@ class Person:
             self._outcomes[outcome.type].append((age, outcome))
 
     def has_outcome_at_current_age(self, outcome):
+        """This function would probably be meaningfully used at the end of a wave, when outcomes have been predicted"""
         ageAtLastOutcome = self.get_age_at_last_outcome(outcome)
         if (ageAtLastOutcome is None) | (self._current_age!=ageAtLastOutcome):
             return False
@@ -252,6 +239,7 @@ class Person:
             return True
     
     def has_fatal_outcome_at_current_age(self, outcome):
+        """This function would probably be meaningfully used at the end of a wave, when outcomes have been predicted"""
         if self.has_outcome_at_current_age(outcome):
             return True if self._outcomes[outcome][-1][1].fatal else False
         else:
@@ -294,6 +282,7 @@ class Person:
             return None #because that was a meaningless application of this function
 
     def has_any_meds_added(self):
+        '''This function checks if a person is receiving additional medications as part of any treatment strategy.'''
         if self.is_in_any_treatment_strategy():
             for tst in TreatmentStrategiesType:
                 if self.is_in_treatment_strategy(tst.value):
@@ -313,6 +302,7 @@ class Person:
         return tstList
 
     def get_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function returns the number of meds added through the provided treatment strategy.'''
         return self._treatmentStrategies[tst][tst+"MedsAdded"]
 
     def _antiHypertensiveCountPlusBPMedsAdded(self):
