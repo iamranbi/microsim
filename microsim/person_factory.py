@@ -70,7 +70,7 @@ class PersonFactory:
         if popType==PopulationType.NHANES.value:
             return PersonFactory.get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         elif popType==PopulationType.KAISER.value:
-            return PersonFactory.get_kaiser_person(x, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
+            return PersonFactory.get_kaiser_person(x)
         else:
             raise RuntimeError("Unrecognized population type in PersonFactory.get_person.")
 

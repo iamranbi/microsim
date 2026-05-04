@@ -5,6 +5,7 @@ from microsim.trials.trial_type import TrialType
 from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from microsim.treatment_strategies.bp_treatment_strategies import AddNBPMedsTreatmentStrategy, AddBPTreatmentMedsToGoal120, NoBPTreatment, SprintTreatment
+from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 
 class TrialDescription:
     '''This instance will hold information about the setup of a Trial instance, information that is common to all Trials.
@@ -180,7 +181,8 @@ class NhanesTrialDescription(TrialDescription):
                            "year":self.year,
                            "personFilters":self.personFilters,
                            "nhanesWeights":self.nhanesWeights,
-                           "distributions":self.distributions}
+                           "distributions":self.distributions,
+                           "outcomePrevalenceModelRepository": OutcomePrevalenceModelRepository()}
         self.modelRepoArgs = {}
         self.popType = PopulationType.NHANES
 

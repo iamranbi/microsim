@@ -233,7 +233,7 @@ class PopulationFactory:
         return df
 
     @staticmethod
-    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None):
+    def get_nhanes_people(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, outcomePrevalenceModelRepository=None):
         '''Returns a Pandas Series object with Person-Objects of all persons included in NHANES for year 
            with or without sampling. Filters are applied prior to sampling in order to maximize efficiency and minimize
            memory utilization. This does not affect the distribution of the relative percentages of groups 
@@ -287,13 +287,12 @@ class PopulationFactory:
             nhanesDfForPeople = nhanesDf
 
         imr = InitializationModelRepository()
-        opmr = OutcomePrevalenceModelRepository()
-        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=opmr, axis="columns")
+        people = pd.DataFrame.apply(nhanesDfForPeople, PersonFactory.get_nhanes_person, args=(imr,), outcomePrevalenceModelRepository=outcomePrevalenceModelRepository, axis="columns")
 
         people = PopulationFactory.apply_person_filters_on_people(personFilters, people)
 
         if nhanesWeights:
-            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=opmr)
+            people = PopulationFactory.bring_people_to_target_n(n, people, nhanesDf, personFilters, popType=PopulationType.NHANES.value, initializationModelRepository=imr, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
             
         PopulationFactory.set_index_in_people(people)
         return people
@@ -318,7 +317,7 @@ class PopulationFactory:
     def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None):
         '''Returns a Population-object with Person-objects being all NHANES persons with or without sampling.
            Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.'''
-        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions,customWeights=customWeights)
+        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo()
         return Population(people, popModelRepository)
 
