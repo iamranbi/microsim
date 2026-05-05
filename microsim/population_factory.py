@@ -298,11 +298,11 @@ class PopulationFactory:
         return people
 
     @staticmethod
-    def get_nhanes_population_model_repo():
+    def get_nhanes_population_model_repo(riskScaling=None):
         """Return the default, self-consistent set of models for advancing an NHANES Population."""
         return PopulationModelRepository(CohortDynamicRiskFactorModelRepository(),
                                          DefaultTreatmentModelRepository(),
-                                         OutcomeModelRepository(),
+                                         OutcomeModelRepository(riskScaling=riskScaling),
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod
@@ -314,11 +314,12 @@ class PopulationFactory:
                                          CohortStaticRiskFactorModelRepository())
 
     @staticmethod    
-    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None):
+    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, riskScaling=None):
         '''Returns a Population-object with Person-objects being all NHANES persons with or without sampling.
-           Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.'''
+           Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.
+           riskScaling: optional dict[OutcomeType, float] applied to per-outcome risk inside the OutcomeModelRepository.'''
         people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
-        popModelRepository = PopulationFactory.get_nhanes_population_model_repo()
+        popModelRepository = PopulationFactory.get_nhanes_population_model_repo(riskScaling=riskScaling)
         return Population(people, popModelRepository)
 
     @staticmethod

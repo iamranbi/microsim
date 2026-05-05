@@ -30,10 +30,12 @@ class OutcomeModelRepository:
         cvScaling = riskScaling.get(OutcomeType.CARDIOVASCULAR, 1.0)
         dementiaScaling = riskScaling.get(OutcomeType.DEMENTIA, 1.0)
         mciScaling = riskScaling.get(OutcomeType.MCI, 1.0)
+        epilepsyScaling = riskScaling.get(OutcomeType.EPILEPSY, 1.0)
+        nonCvScaling = riskScaling.get(OutcomeType.NONCARDIOVASCULAR, 1.0)
         self._repository = {
                           OutcomeType.WMH: WMHModelRepository(),
                           OutcomeType.DEMENTIA: DementiaModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=dementiaScaling),
-                          OutcomeType.EPILEPSY: EpilepsyModelRepository(),
+                          OutcomeType.EPILEPSY: EpilepsyModelRepository(riskScaling=epilepsyScaling),
                           OutcomeType.COGNITION: CognitionModelRepository(),
                           OutcomeType.CI: CIModelRepository(),
                           OutcomeType.MCI: MCIModelRepository(riskScaling=mciScaling),
@@ -43,7 +45,7 @@ class OutcomeModelRepository:
                           OutcomeType.CARDIOVASCULAR: CVModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=cvScaling),
                           OutcomeType.MI: MIPartitionModelRepository(),
                           OutcomeType.STROKE: StrokePartitionModelRepository(),
-                          OutcomeType.NONCARDIOVASCULAR: NonCVModelRepository(wmhSpecific = self._wmhSpecific),
+                          OutcomeType.NONCARDIOVASCULAR: NonCVModelRepository(wmhSpecific = self._wmhSpecific, riskScaling=nonCvScaling),
                           OutcomeType.DEATH: DeathModelRepository()}
         #must have a model repository for all outcome types
         self.check_repository_completeness()

@@ -120,9 +120,10 @@ class EpilepsyPrevalenceModel(OutcomePrevalenceBase):
 
 
 class EpilepsyIncidenceModel():
-    def __init__(self):
+    def __init__(self, riskScaling=1.0):
         self._cbhfSlope = 0.001286 #fitted to first 7 years of data
         self._cbhfIntercept = 0.
+        self._riskScaling = riskScaling
 
     def get_cumulative_baseline_hazard_function(self, person):
         '''Returns the cumulative baseline hazard for person at the end of the current wave of updates, 
@@ -242,7 +243,8 @@ class EpilepsyIncidenceModel():
             risk = 1.
         else:
             #risk is essentially the cumulative distribution function P(T<=t) where T is the time of the outcome and t in our case is 1 year
-            risk = 1. - self.get_survival_function(person) 
+            risk = 1. - self.get_survival_function(person)
+            risk = risk * self._riskScaling
         return risk
 
     def generate_next_outcome(self, person):

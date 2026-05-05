@@ -8,13 +8,17 @@ import numpy as np
 
 #this class represents non CV mortality
 class NonCVDeathModel(StatsModelLogisticRiskFactorModel):
-    def __init__(self, wmhSpecific=True):
+    def __init__(self, wmhSpecific=True, riskScaling=1.0):
         modelSpec = load_model_spec("nhanesMortalityModelLogit")
         # Recalibrate mortalitly model to align with life table data, as explored in notebook buildNHANESMortalityModel
         modelSpec["coefficients"]["age"] = modelSpec["coefficients"]["age"]*(-1)
-        modelSpec["coefficients"]["squareAge"] = modelSpec["coefficients"]["squareAge"]*4 
+        modelSpec["coefficients"]["squareAge"] = modelSpec["coefficients"]["squareAge"]*4
         super().__init__(RegressionModel(**modelSpec), False)
         self.wmhSpecific=wmhSpecific
+        self._riskScaling = riskScaling
+
+    def estimate_next_risk(self, person):
+        return super().estimate_next_risk(person) * self._riskScaling
         
     def generate_next_outcome(self, person):
         fatal=True
