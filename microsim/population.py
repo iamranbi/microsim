@@ -907,7 +907,7 @@ class Population:
         print(" "*19, "age", "  rate")
         for group, rate in incidentRate.items():
             print(f"{group:>23} {rate:7.4f}")
-        print(f"{'cumulative (>=65)':>23} {cumulative65plus:7.4f}")
+        print(f"{'>=65':>23} {cumulative65plus:7.4f}")
   
     def print_outcome_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         '''Prints the age and the prevalence rate of that age.
@@ -924,8 +924,8 @@ class Population:
         print(" "*19, "age", "  rate")
         for group, rate in prevalence.items():
             print(f"{group:>23} {rate:7.4f}")
-        print(f"{'cumulative (>=65)':>23} {cumulative65plus:7.4f}")
-        print(f"{'cumulative':>23} {cumulativePrevalence:7.4f}")
+        print(f"{'>=65':>23} {cumulative65plus:7.4f}")
+        print(f"{'all':>23} {cumulativePrevalence:7.4f}")
 
     def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         self.print_outcome_incidence(outcomeType=outcomeType, groups=groups)
