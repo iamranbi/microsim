@@ -922,6 +922,8 @@ class Population:
         '''Prints the age and the prevalence rate of that age.
            If groups is True, it calculates the prevalence by age group, a string, not the age (integer).'''
         prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
+        prevalenceByAge = self.get_prevalence_by_age(outcomeType, groups=False) if groups else prevalence
+        cumulative65plus = sum(rate for age, rate in prevalenceByAge.items() if age >= 65)
         cumulativePrevalence = self.get_outcome_cumulative_prevalence(outcomeType)
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} prevalence rate")
@@ -929,6 +931,7 @@ class Population:
         print(" "*19, "age", "  rate")
         for group, rate in prevalence.items():
             print(f"{group:>23} {rate:7.4f}")
+        print(f"{'cumulative (>=65)':>23} {cumulative65plus:7.4f}")
         print(f"{'cumulative':>23} {cumulativePrevalence:7.4f}")
 
     def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
