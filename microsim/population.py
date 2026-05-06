@@ -912,8 +912,10 @@ class Population:
         '''Prints the age and the prevalence rate of that age.
            If groups is True, it calculates the prevalence by age group, a string, not the age (integer).'''
         prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
-        prevalenceByAge = self.get_prevalence_by_age(outcomeType, groups=False) if groups else prevalence
-        cumulative65plus = sum(rate for age, rate in prevalenceByAge.items() if age >= 65)
+        alive65plus = list(filter(lambda p: p.is_alive and p._current_age >= 65, self._people))
+        denom65plus = len(alive65plus)
+        numer65plus = sum(1 for p in alive65plus if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False))
+        cumulative65plus = numer65plus / denom65plus if denom65plus > 0 else 0
         cumulativePrevalence = self.get_outcome_cumulative_prevalence(outcomeType)
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} prevalence rate")
