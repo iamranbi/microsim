@@ -94,7 +94,7 @@ class StrokePrevalenceModel(OutcomePrevalenceBase):
     _outcomeType = OutcomeType.STROKE
 
     def __init__(self):
-        self._intercept = 0.
+        self._intercept = 13.2
 
     def get_prevalent_outcome(self, person):
         if not person.has_outcome_prior_to_simulation(OutcomeType.CARDIOVASCULAR):
@@ -135,54 +135,41 @@ class StrokePrevalenceModel(OutcomePrevalenceBase):
         dbp,
         totChol,
     ):
-        xb = self._intercept
+        xb = self._intercept + ( - 14.1 / 12.9 ) * 71.97
 
-        if age < 65:
-            xb += 0.
-        elif 65 <= age < 70:
-            xb += 0.  # reference
-        elif 70 <= age < 75:
-            xb += 0.
-        elif 75 <= age < 80:
-            xb += 0.
-        elif age >= 80:
-            xb += 0.
+        xb += ( 14.1 / 12.9 ) * age
 
         if gender == NHANESGender.FEMALE:
-            xb += 0.
+            xb += 3.45
         elif gender == NHANESGender.MALE:
             xb += 0.  # reference
 
         if raceEthnicity == RaceEthnicity.NON_HISPANIC_WHITE:
-            xb += 0.  # reference
+            xb += -27.3
         elif raceEthnicity == RaceEthnicity.ASIAN:
             xb += 0.
         elif raceEthnicity == RaceEthnicity.NON_HISPANIC_BLACK:
-            xb += 0.
-        elif (raceEthnicity == RaceEthnicity.MEXICAN_AMERICAN) | (raceEthnicity == RaceEthnicity.OTHER_HISPANIC):
-            xb += 0.
+            xb += -6.75
+        elif raceEthnicity == RaceEthnicity.OTHER_HISPANIC:
+            xb += 2.72
         elif raceEthnicity == RaceEthnicity.OTHER:
-            xb += 0.
+            xb += 0.188
 
-        if (education == Education.LESSTHANHIGHSCHOOL) | (education == Education.SOMEHIGHSCHOOL):
+        if education == Education.LESSTHANHIGHSCHOOL:
             xb += 0.  # reference
+        elif education == Education.SOMEHIGHSCHOOL:
+            xb += 3.94
         elif education == Education.HIGHSCHOOLGRADUATE:
-            xb += 0.
-        elif education == Education.SOMECOLLEGE:
-            xb += 0.
-        elif education == Education.COLLEGEGRADUATE:
-            xb += 0.
+            xb += -0.0851
+        elif (education == Education.SOMECOLLEGE) | (education == Education.COLLEGEGRADUATE):
+            xb += 1.07
 
         if smokingStatus == SmokingStatus.NEVER:
             xb += 0.  # reference
         elif smokingStatus == SmokingStatus.FORMER:
-            xb += 0.
+            xb += -11
         elif smokingStatus == SmokingStatus.CURRENT:
-            xb += 0.
+            xb += 0.0595
 
-        xb += anyPhysicalActivity * 0.
-        xb += sbp * 0.
-        xb += dbp * 0.
-        xb += totChol * 0.
 
         return xb
