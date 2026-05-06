@@ -261,8 +261,19 @@ class Population:
     def get_prevalence_by_age(self, outcomeType, groups=False):
         '''outcomeType: the outcome which you want the prevalence of
            groups: if the prevalence should be calculated by age, an integer, or age group, a string
-           Returns a Counter object with keys being the ages, or age groups, and the values being the outcome prevalence 
-           for that age or age group.'''
+           Returns a Counter object with keys being the ages, or age groups, and the values being the outcome prevalence
+           for that age or age group.
+
+           WARNING - the value computed here is not true prevalence:
+           - Numerator counts person-years in which an outcome event *occurred* at that age (from
+             Person.get_ages_with_outcome), not person-years in which the person *has* the condition.
+             Chronic outcomes are not carried forward: someone who had a stroke at 60 and is alive at
+             70 contributes 0 to the rate at age 70.
+           - For recurrent outcomes (e.g. STROKE, MI) the numerator can include multiple events per
+             person, so this differs from get_raw_incidence_by_age (which restricts to first events).
+           - get_outcome_cumulative_prevalence measures yet a third thing (lifetime prevalence: fraction
+             of persons who ever had the outcome), so the per-age rates here and the cumulative line
+             printed alongside them are not on the same scale.'''
         ages = self.get_ages()
         agesCounter = Counter(ages)  #dict of age frequencies
         agesWithOutcome = self.get_ages_with_outcome(outcomeType=outcomeType)
@@ -897,12 +908,15 @@ class Population:
     def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         '''Prints the age group and the incidence rate, for the first outcome of outcomeType, of that age group.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
+        incidentRateByAge = self.get_raw_incidence_by_age(outcomeType, groups=False) if groups else incidentRate
+        cumulative65plus = sum(rate for age, rate in incidentRateByAge.items() if age >= 65)
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
         print(" "*25, "-"*53)
         print(" "*19, "age", "  rate")
         for group, rate in incidentRate.items():
             print(f"{group:>23} {rate:6.3f}")
+        print(f"{'cumulative (>=65)':>23} {cumulative65plus:6.3f}")
   
     def print_outcome_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         '''Prints the age and the prevalence rate of that age.
