@@ -653,8 +653,11 @@ class Person:
         return False
     
     def has_outcome_by_age(self, outcomeType, age, inSim=True):
-        for outcome_tuple in self._outcomes[outcomeType]:
-            if (not outcome_tuple[1].priorToSim) and (outcome_tuple[0]<=age):
+        for outcome_age, outcome in self._outcomes[outcomeType]:
+            if outcome.priorToSim:
+                if not inSim:
+                    return True
+            elif outcome_age <= age:
                 return True
         return False
 

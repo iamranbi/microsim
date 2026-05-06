@@ -259,32 +259,22 @@ class Population:
         return incidence 
 
     def get_prevalence_by_age(self, outcomeType, groups=False):
-        '''outcomeType: the outcome which you want the prevalence of
-           groups: if the prevalence should be calculated by age, an integer, or age group, a string
-           Returns a Counter object with keys being the ages, or age groups, and the values being the outcome prevalence
-           for that age or age group.
-
-           WARNING - the value computed here is not true prevalence:
-           - Numerator counts person-years in which an outcome event *occurred* at that age (from
-             Person.get_ages_with_outcome), not person-years in which the person *has* the condition.
-             Chronic outcomes are not carried forward: someone who had a stroke at 60 and is alive at
-             70 contributes 0 to the rate at age 70.
-           - For recurrent outcomes (e.g. STROKE, MI) the numerator can include multiple events per
-             person, so this differs from get_raw_incidence_by_age (which restricts to first events).
-           - get_outcome_cumulative_prevalence measures yet a third thing (lifetime prevalence: fraction
-             of persons who ever had the outcome), so the per-age rates here and the cumulative line
-             printed alongside them are not on the same scale.'''
-        ages = self.get_ages()
-        agesCounter = Counter(ages)  #dict of age frequencies
-        agesWithOutcome = self.get_ages_with_outcome(outcomeType=outcomeType)
-        agesWithOutcomeCounter = Counter(agesWithOutcome) #dict of age with outcome frequencies
+        '''Cross-sectional prevalence at the current simulation snapshot.
+           Each alive person contributes once at their current age: to the
+           denominator always, and to the numerator if they currently have
+           the condition (priorToSim outcome, or in-sim outcome at age
+           <= current age). Returns a Counter keyed by age (or age group).'''
+        alivePeople = list(filter(lambda p: p.is_alive, self._people))
+        agesCounter = Counter(map(lambda p: p._current_age, alivePeople))
+        agesWithOutcomeCounter = Counter(map(lambda p: p._current_age,
+            filter(lambda p: p.has_outcome_by_age(outcomeType, p._current_age, inSim=False), alivePeople)))
         if groups:
             agesCounter = self.get_ages_group_counter(agesCounter) #converts the Counter of ages to a Counter of age groups
             agesWithOutcomeCounter = self.get_ages_group_counter(agesWithOutcomeCounter) #same thing
         prevalence = dict()
         for key in sorted(agesCounter.keys()): #sorting keys here preserves sorted insertion order for the prevalence as well
             prevalence[key] = agesWithOutcomeCounter.get(key,0) / agesCounter.get(key,0)
-        return Counter(prevalence)    
+        return Counter(prevalence)
 
     def get_gender_age_of_all_outcomes_in_sim(self, outcomeType, personFilter=None):
         #get [(gender, age), ...] for all people and their outcomes
