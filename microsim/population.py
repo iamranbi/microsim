@@ -898,8 +898,9 @@ class Population:
     def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         '''Prints the age group and the incidence rate, for the first outcome of outcomeType, of that age group.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
-        incidentRateByAge = self.get_raw_incidence_by_age(outcomeType, groups=False) if groups else incidentRate
-        cumulative65plus = sum(rate for age, rate in incidentRateByAge.items() if age >= 65)
+        outcomeAges65plus = [a for a in self.get_age_at_first_outcome(outcomeType) if a >= 65]
+        personYears65plus = sum(1 for a in self.get_ages() if a >= 65)
+        cumulative65plus = len(outcomeAges65plus) / personYears65plus if personYears65plus > 0 else 0
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
         print(" "*25, "-"*53)
