@@ -14,22 +14,36 @@ from microsim.outcomes.cognition_model_repository import CognitionPrevalenceMode
 class OutcomePrevalenceModelRepository:
     """Holds the priorToSim (prevalence) rules for outcomes.
        Mirror image of OutcomeModelRepository: every OutcomeType is registered as a key, but
-       outcomes without a prevalence model resolve to None and are skipped during seeding."""
+       outcomes without a prevalence model resolve to None and are skipped during seeding.
 
-    def __init__(self):
+       riskScaling: optional dict[OutcomeType, float] applied per-outcome inside each
+       prevalence model. For expit-based logistic models the scalar is applied as an odds
+       shift (lp + log(scaling)); for the epilepsy rate model it is a direct rate multiplier.
+       Outcomes without a probabilistic prevalence model (MI partition, cognition GCP) ignore
+       riskScaling regardless of what is passed."""
+
+    def __init__(self, riskScaling=None):
+        if riskScaling is None:
+            riskScaling = {}
+        cvScaling = riskScaling.get(OutcomeType.CARDIOVASCULAR, 1.0)
+        strokeScaling = riskScaling.get(OutcomeType.STROKE, 1.0)
+        dementiaScaling = riskScaling.get(OutcomeType.DEMENTIA, 1.0)
+        epilepsyScaling = riskScaling.get(OutcomeType.EPILEPSY, 1.0)
+        diabetesScaling = riskScaling.get(OutcomeType.DIABETES, 1.0)
+        ckdScaling = riskScaling.get(OutcomeType.CHRONIC_KIDNEY_DISEASE, 1.0)
         self._repository = {
             OutcomeType.WMH:                      None,
             OutcomeType.COGNITION:                CognitionPrevalenceModelRepository(),
             OutcomeType.CI:                       None,
             OutcomeType.MCI:                      None,
-            OutcomeType.DIABETES:                 DiabetesPrevalenceModelRepository(),
-            OutcomeType.CHRONIC_KIDNEY_DISEASE:   ChronicKidneyDiseasePrevalenceModelRepository(),
-            OutcomeType.CARDIOVASCULAR:           CVPrevalenceModelRepository(),
-            OutcomeType.STROKE:                   StrokePrevalenceModelRepository(),
+            OutcomeType.DIABETES:                 DiabetesPrevalenceModelRepository(riskScaling=diabetesScaling),
+            OutcomeType.CHRONIC_KIDNEY_DISEASE:   ChronicKidneyDiseasePrevalenceModelRepository(riskScaling=ckdScaling),
+            OutcomeType.CARDIOVASCULAR:           CVPrevalenceModelRepository(riskScaling=cvScaling),
+            OutcomeType.STROKE:                   StrokePrevalenceModelRepository(riskScaling=strokeScaling),
             OutcomeType.MI:                       MIPrevalenceModelRepository(),
             OutcomeType.NONCARDIOVASCULAR:        None,
-            OutcomeType.DEMENTIA:                 DementiaPrevalenceModelRepository(),
-            OutcomeType.EPILEPSY:                 EpilepsyPrevalenceModelRepository(),
+            OutcomeType.DEMENTIA:                 DementiaPrevalenceModelRepository(riskScaling=dementiaScaling),
+            OutcomeType.EPILEPSY:                 EpilepsyPrevalenceModelRepository(riskScaling=epilepsyScaling),
             OutcomeType.DEATH:                    None,
             OutcomeType.QUALITYADJUSTED_LIFE_YEARS: None,
         }

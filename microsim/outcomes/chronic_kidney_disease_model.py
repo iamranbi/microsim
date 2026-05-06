@@ -27,8 +27,9 @@ class ChronicKidneyDiseasePrevalenceModel(OutcomePrevalenceBase):
 
     _outcomeType = OutcomeType.CHRONIC_KIDNEY_DISEASE
 
-    def __init__(self):
+    def __init__(self, riskScaling=1.0):
         self._intercept = 0.
+        self._riskScaling = riskScaling
 
     def get_risk_for_person(self, person):
         return 0.

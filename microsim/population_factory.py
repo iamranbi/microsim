@@ -313,12 +313,13 @@ class PopulationFactory:
                                          OutcomeModelRepository(wmhSpecific=wmhSpecific, riskScaling=riskScaling),
                                          CohortStaticRiskFactorModelRepository())
 
-    @staticmethod    
-    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, riskScaling=None):
+    @staticmethod
+    def get_nhanes_population(n=None, year=None, personFilters=None, nhanesWeights=False, distributions=False, customWeights=None, riskScaling=None, prevalenceRiskScaling=None):
         '''Returns a Population-object with Person-objects being all NHANES persons with or without sampling.
            Person attributes can originate either from the NHANES dataset directly or from distributions fit to the NHANES dataset.
-           riskScaling: optional dict[OutcomeType, float] applied to per-outcome risk inside the OutcomeModelRepository.'''
-        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository())
+           riskScaling: optional dict[OutcomeType, float] applied to per-outcome risk inside the OutcomeModelRepository.
+           prevalenceRiskScaling: optional dict[OutcomeType, float] applied to per-outcome priorToSim risk inside the OutcomePrevalenceModelRepository.'''
+        people = PopulationFactory.get_nhanes_people(n=n, year=year, personFilters=personFilters, nhanesWeights=nhanesWeights, distributions=distributions, customWeights=customWeights, outcomePrevalenceModelRepository=OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling))
         popModelRepository = PopulationFactory.get_nhanes_population_model_repo(riskScaling=riskScaling)
         return Population(people, popModelRepository)
 

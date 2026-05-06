@@ -162,27 +162,29 @@ class NhanesTrialDescription(TrialDescription):
     It holds the information needed for all trials, those are provided to the initialization of the
     superclass TrialDescription, and in addition it holds all information related to the NHANES population.
     An instance of this class can be used to initialize the Trial class.'''
-    def __init__(self, 
-                 trialType=TrialType.COMPLETELY_RANDOMIZED, 
+    def __init__(self,
+                 trialType=TrialType.COMPLETELY_RANDOMIZED,
                  blockFactors=list(),
-                 sampleSize=100, 
-                 duration=5, 
-                 treatmentStrategies=TreatmentStrategyRepository(), 
-                 nWorkers=1, 
+                 sampleSize=100,
+                 duration=5,
+                 treatmentStrategies=TreatmentStrategyRepository(),
+                 nWorkers=1,
                  personFilters=None,
-                 year=1999, 
-                 nhanesWeights=False, 
-                 distributions=False):
+                 year=1999,
+                 nhanesWeights=False,
+                 distributions=False,
+                 prevalenceRiskScaling=None):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)
         self.year = year
         self.nhanesWeights=nhanesWeights
         self.distributions=distributions
+        self.prevalenceRiskScaling = prevalenceRiskScaling
         self.peopleArgs = {"n":self.sampleSize,
                            "year":self.year,
                            "personFilters":self.personFilters,
                            "nhanesWeights":self.nhanesWeights,
                            "distributions":self.distributions,
-                           "outcomePrevalenceModelRepository": OutcomePrevalenceModelRepository()}
+                           "outcomePrevalenceModelRepository": OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling)}
         self.modelRepoArgs = {}
         self.popType = PopulationType.NHANES
 

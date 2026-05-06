@@ -25,8 +25,8 @@ class DementiaModelRepository:
 
 
 class DementiaPrevalenceModelRepository:
-    def __init__(self):
-        self._model = DementiaPrevalenceModel()
+    def __init__(self, riskScaling=1.0):
+        self._model = DementiaPrevalenceModel(riskScaling=riskScaling)
 
     def select_outcome_model_for_person(self, person):
         return self._model

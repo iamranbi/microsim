@@ -9,13 +9,15 @@ from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 class EpilepsyPrevalenceModel(OutcomePrevalenceBase):
     _outcomeType = OutcomeType.EPILEPSY
 
-    def __init__(self):
+    def __init__(self, riskScaling=1.0):
         self._intercept = 4.742451144
+        self._riskScaling = riskScaling
 
     def get_risk_for_person(self, person):
         # Coefficients below are calibrated to a linear-predictor / 1000 scaling, not expit(lp).
         # Override exists to preserve that scaling; the base class default would apply expit instead.
-        return self.get_linear_predictor_for_person(person) / 1000.
+        # Risk scaling applied as a direct rate multiplier (not odds-shift) for the same reason.
+        return self.get_linear_predictor_for_person(person) / 1000. * self._riskScaling
 
     def get_linear_predictor_for_person(self, person):
         return self.calc_linear_predictor_for_patient_characteristics(

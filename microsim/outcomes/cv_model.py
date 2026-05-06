@@ -156,8 +156,9 @@ class CVPrevalenceModel(OutcomePrevalenceBase):
 
     _outcomeType = OutcomeType.CARDIOVASCULAR
 
-    def __init__(self):
+    def __init__(self, riskScaling=1.0):
         self._intercept = -13.9
+        self._riskScaling = riskScaling
 
     def get_linear_predictor_for_person(self, person):
         return self.calc_linear_predictor_for_patient_characteristics(

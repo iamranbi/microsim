@@ -93,8 +93,9 @@ class StrokePrevalenceModel(OutcomePrevalenceBase):
 
     _outcomeType = OutcomeType.STROKE
 
-    def __init__(self):
+    def __init__(self, riskScaling=1.0):
         self._intercept = 13.2
+        self._riskScaling = riskScaling
 
     def get_prevalent_outcome(self, person):
         if not person.has_outcome_prior_to_simulation(OutcomeType.CARDIOVASCULAR):
