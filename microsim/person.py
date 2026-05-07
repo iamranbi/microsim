@@ -674,6 +674,14 @@ class Person:
         else:
             return None
 
+    def get_at_risk_age_at_first_outcome(self, outcomeType):
+        '''Returns the age of the first in-sim outcome only when the person was at risk for first
+           incidence (no priorToSim outcome). Returns None if the person had a priorToSim outcome
+           or had no in-sim event.'''
+        if self.has_outcome_prior_to_simulation(outcomeType):
+            return None
+        return self.get_age_at_first_outcome(outcomeType, inSim=True)
+
     def get_min_age_of_first_outcomes(self, outcomeTypeList, inSim=True):
         firstAgeList = list(map(lambda x: self.get_age_at_first_outcome(x, inSim=inSim), outcomeTypeList))
         firstAgeList = list(filter(lambda x: x is not None, firstAgeList))
@@ -824,6 +832,17 @@ class Person:
     def get_ages(self):
         '''Returns a list with the ages of the person'''
         return getattr(self, "_"+DynamicRiskFactorsType.AGE.value)
+
+    def get_at_risk_ages(self, outcomeType):
+        '''Returns the person's at-risk ages for first incidence of outcomeType:
+           - empty list if the person had a priorToSim outcome (never at risk for first incidence)
+           - all ages if no in-sim event occurred
+           - ages truncated at the first in-sim event age (inclusive) otherwise
+           Used as person-year contribution to the at-risk denominator for first-incidence rates.'''
+        if self.has_outcome_prior_to_simulation(outcomeType):
+            return []
+        firstAge = self.get_age_at_first_outcome(outcomeType, inSim=True)
+        return self.get_ages() if firstAge is None else [a for a in self.get_ages() if a <= firstAge]
 
     def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
         '''Returns a list with the ages of the person that did have outcome'''

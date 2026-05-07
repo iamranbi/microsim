@@ -210,11 +210,22 @@ class Population:
         return Counter(agesGroupCounter)
 
     def get_age_at_first_outcome(self, outcomeType, inSim=True):
-        #we get None from Person objects that had no outcome
+        '''First-outcome ages across all people (Nones filtered).
+           NOTE: For recurrent outcomes (e.g., STROKE, MI) with inSim=True, a priorToSim case can
+           contribute its in-sim recurrence age here, since that recurrence is the first in-sim
+           event. That is NOT a first incidence in the cohort sense. For first-incidence analyses,
+           use get_at_risk_age_at_first_outcome instead, which excludes priorToSim cases entirely.'''
         ages = list(map(lambda x: x.get_age_at_first_outcome(outcomeType, inSim=inSim), self._people))
-        #remove Nones 
         ages = list(filter(lambda x: x is not None,ages))
         return ages
+
+    def get_at_risk_age_at_first_outcome(self, outcomeType):
+        '''First in-sim outcome ages, restricted to people without a priorToSim outcome
+           (the at-risk set for first incidence). Delegates to Person.get_at_risk_age_at_first_outcome.
+           Use this for first-incidence rate calculations; use get_age_at_first_outcome only when
+           you genuinely want first in-sim events including recurrences.'''
+        ages = map(lambda p: p.get_at_risk_age_at_first_outcome(outcomeType), self._people)
+        return list(filter(lambda a: a is not None, ages))
 
     def get_min_age_of_first_outcomes(self, outcomeTypeList, inSim=True):
         return list(map(lambda x: x.get_min_age_of_first_outcomes(outcomeTypeList, inSim=inSim), self._people))
@@ -234,6 +245,13 @@ class Population:
         ages = list(itertools.chain.from_iterable(ages)) #flattened list of ages
         return ages
 
+    def get_at_risk_ages(self, outcomeType):
+        '''Returns the flattened at-risk person-years for outcomeType across the population.
+           Delegates to Person.get_at_risk_ages, which returns [] for priorToSim cases and
+           truncates the rest at first in-sim event age.'''
+        ages = map(lambda p: p.get_at_risk_ages(outcomeType), self._people)
+        return list(itertools.chain.from_iterable(ages))
+
     def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
         '''Returns a list with the outcome ages of the entire population as the elements'''
         agesWithOutcome = map(lambda x: x.get_ages_with_outcome(outcomeType=outcomeType), self._people) #nested list of lists with ages
@@ -242,9 +260,11 @@ class Population:
 
     def get_raw_incidence_by_age(self, outcomeType, groups=False):
         '''Returns a dictionary with the keys being either age (integer, groups=False)
-        or the age group (string, groups=True) and the values being the counts for that age or age group.'''
-        outcomeAges = self.get_age_at_first_outcome(outcomeType) #first incidence of the outcome
-        ages = self.get_ages()
+        or the age group (string, groups=True) and the values being the counts for that age or age group.
+        Restricted to the at-risk set for first incidence (excludes people with a priorToSim outcome);
+        each person's person-years are truncated at the age of their first in-sim event.'''
+        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType) #first in-sim incidence among at-risk people
+        ages = self.get_at_risk_ages(outcomeType)
         agesCounter = Counter(ages)
         outcomeAgesCounter = Counter(outcomeAges)
         if groups: #if true, then get the counter for age groups, keys are strings now, values are counts for age group category
@@ -373,15 +393,20 @@ class Population:
         return expectedOutcomes
 
     def get_outcome_cumulative_incidence(self, outcomeType):
-        return sum(list(map(lambda x: x.has_outcome_during_simulation(outcomeType), self._people)))/self._n
+        atRisk = [p for p in self._people if not p.has_outcome_prior_to_simulation(outcomeType)]
+        return sum(p.has_outcome_during_simulation(outcomeType) for p in atRisk)/len(atRisk) if len(atRisk) > 0 else 0
 
     def get_any_outcome_cumulative_incidence(self, outcomeTypeList):
-        return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=True), self._people)))/self._n
+        atRisk = [p for p in self._people if not any(p.has_outcome_prior_to_simulation(ot) for ot in outcomeTypeList)]
+        return sum(p.has_any_outcome(outcomeTypeList, inSim=True) for p in atRisk)/len(atRisk) if len(atRisk) > 0 else 0
 
-    def get_outcome_cumulative_prevalence(self, outcomeType):
+    def get_outcome_lifetime_prevalence(self, outcomeType):
+        '''Fraction of the starting cohort that ever had the outcome (priorToSim or in-sim, alive or dead).
+           This is "lifetime prevalence" — distinct from cross-sectional prevalence among the currently alive.'''
         return sum(list(map(lambda x: x.has_outcome(outcomeType, inSim=False), self._people)))/self._n
 
-    def get_any_outcome_cumulative_prevalence(self, outcomeTypeList):
+    def get_any_outcome_lifetime_prevalence(self, outcomeTypeList):
+        '''Fraction of the starting cohort that ever had any of the listed outcomes (priorToSim or in-sim).'''
         return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=False), self._people)))/self._n
 
     def get_outcome_count(self, outcomeType):
@@ -896,36 +921,48 @@ class Population:
             print("exported results as PNG figures")
  
     def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
-        '''Prints the age group and the incidence rate, for the first outcome of outcomeType, of that age group.'''
+        '''Prints first-incidence rates per age (or age group, if groups=True) plus two summary rows:
+           rate (>=65)    pooled person-year rate over ages 65+
+           rate (overall) pooled person-year rate over all ages
+           All rows are restricted to the at-risk set (people without a priorToSim outcome) and
+           use person-years truncated at each person's first in-sim event.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
-        outcomeAges65plus = [a for a in self.get_age_at_first_outcome(outcomeType) if a >= 65]
-        personYears65plus = sum(1 for a in self.get_ages() if a >= 65)
-        cumulative65plus = len(outcomeAges65plus) / personYears65plus if personYears65plus > 0 else 0
+        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType)
+        personYears = self.get_at_risk_ages(outcomeType)
+        outcomeAges65plus = [a for a in outcomeAges if a >= 65]
+        personYears65plus = [a for a in personYears if a >= 65]
+        rate65plus = len(outcomeAges65plus) / len(personYears65plus) if len(personYears65plus) > 0 else 0
+        rateOverall = len(outcomeAges) / len(personYears) if len(personYears) > 0 else 0
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
         print(" "*25, "-"*53)
         print(" "*19, "age", "  rate")
         for group, rate in incidentRate.items():
             print(f"{group:>23} {rate:7.4f}")
-        print(f"{'>=65':>23} {cumulative65plus:7.4f}")
+        print(f"{'rate (>=65)':>23} {rate65plus:7.4f}")
+        print(f"{'rate (overall)':>23} {rateOverall:7.4f}")
   
     def print_outcome_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
-        '''Prints the age and the prevalence rate of that age.
-           If groups is True, it calculates the prevalence by age group, a string, not the age (integer).'''
+        '''Prints cross-sectional prevalence per age (or age group, if groups=True) plus two summary rows:
+           pooled (>=65)    pooled cross-sectional prevalence among alive people aged 65+
+           pooled (overall) pooled cross-sectional prevalence among all alive people
+           Numerators include both priorToSim and in-sim outcomes (anyone currently with the outcome);
+           denominators count only currently alive people.'''
         prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
-        alive65plus = list(filter(lambda p: p.is_alive and p._current_age >= 65, self._people))
-        denom65plus = len(alive65plus)
-        numer65plus = sum(1 for p in alive65plus if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False))
-        cumulative65plus = numer65plus / denom65plus if denom65plus > 0 else 0
-        cumulativePrevalence = self.get_outcome_cumulative_prevalence(outcomeType)
+        alive = list(filter(lambda p: p.is_alive, self._people))
+        alive65plus = [p for p in alive if p._current_age >= 65]
+        hasOutcome = [p for p in alive if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False)]
+        hasOutcome65plus = [p for p in hasOutcome if p._current_age >= 65]
+        pooled65plus = len(hasOutcome65plus) / len(alive65plus) if len(alive65plus) > 0 else 0
+        pooledOverall = len(hasOutcome) / len(alive) if len(alive) > 0 else 0
         print(" "*25, "-"*53)
         print(" "*25, f"{outcomeType.value} prevalence rate")
         print(" "*25, "-"*53)
         print(" "*19, "age", "  rate")
         for group, rate in prevalence.items():
             print(f"{group:>23} {rate:7.4f}")
-        print(f"{'>=65':>23} {cumulative65plus:7.4f}")
-        print(f"{'all':>23} {cumulativePrevalence:7.4f}")
+        print(f"{'pooled (>=65)':>23} {pooled65plus:7.4f}")
+        print(f"{'pooled (overall)':>23} {pooledOverall:7.4f}")
 
     def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
         self.print_outcome_incidence(outcomeType=outcomeType, groups=groups)
