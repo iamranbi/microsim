@@ -253,9 +253,7 @@ class PopulationFactory:
             personFilters = PersonFilter()
             personFilters.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
         else:
-            print("Warning: Microsim now by default includes children in populations created using NHANES data.", end="")
-            print("Microsim models have yet to be validated for use in children.", end="")
-            print("Include an age filter if you wish to simulate an adult population.")
+            print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 
         nhanesDf = PopulationFactory.apply_person_filters_on_df(personFilters, nhanesDf)        
  
