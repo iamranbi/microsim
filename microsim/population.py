@@ -668,10 +668,12 @@ class Population:
         return quintiles
 
     def print_baseline_summary(self):
+        print(" "*25, "Printing a summary at baseline...")
         self.print_summary_at_index(0)
 
     def print_lastyear_summary(self):
-        self.print_summary_at_index(-1) 
+        print(" "*25, "Printing a summary at the last year of the simulation...")
+        self.print_summary_at_index(-1)
 
     def print_summary_at_index(self, index):
         """Prints a summary of both static and dynamic risk factors at index (baseline: index=0, last year: index=-1."""
@@ -716,9 +718,11 @@ class Population:
         print(Population.get_categorical_variables_key())
 
     def print_baseline_summary_comparison(self, other):
+        print(" "*25, "Printing a summary comparison at baseline...")
         self.print_summary_at_index_comparison(other, 0)
 
     def print_lastyear_summary_comparison(self, other):
+        print(" "*25, "Printing a summary comparison at the last year of the simulation...")
         self.print_summary_at_index_comparison(other, -1)
 
     def print_summary_at_index_comparison(self, other, index):
