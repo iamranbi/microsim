@@ -197,6 +197,37 @@ class Population:
     def get_attr(self, attr):
         return list(map(lambda x: getattr(x, "_"+attr), self._people))
 
+    @staticmethod
+    def get_age_predicate(scope):
+        '''Map a `scope` tuple to a callable that takes an integer age and returns True iff
+           that age falls in the scope. Used by prevalence/incidence pooling here and by
+           PopulationFactory.calibrate_prevalence to filter per-person linear predictors.
+              ("age", k)              -> exactly age k
+              ("age_group", "a-b")    -> inclusive interval [a, b]
+              ("pooled_65_plus",)     -> age >= 65
+              ("pooled_overall",)     -> all ages'''
+        if not isinstance(scope, tuple) or len(scope) == 0:
+            raise ValueError(f"scope must be a non-empty tuple; got {scope!r}.")
+        kind = scope[0]
+        if kind == "age":
+            (_, k) = scope
+            return lambda age: age == k
+        if kind == "age_group":
+            (_, label) = scope
+            try:
+                lo, hi = (int(x) for x in label.split("-"))
+            except (ValueError, AttributeError):
+                raise ValueError(f"age_group label must look like '70-74'; got {label!r}.")
+            return lambda age: lo <= age <= hi
+        if kind == "pooled_65_plus":
+            return lambda age: age >= 65
+        if kind == "pooled_overall":
+            return lambda age: True
+        raise ValueError(
+            f"unknown scope kind {kind!r}; expected one of "
+            f"'age', 'age_group', 'pooled_65_plus', 'pooled_overall'."
+        )
+
     def get_ages_group_counter(self, agesCounter):
         '''agesCounter: Counter instance with keys the ages and values the counts for that age.
         Returns a dictionary with keys the age group string and values the counts for that age group.'''
@@ -933,8 +964,9 @@ class Population:
         incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
         outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType)
         personYears = self.get_at_risk_ages(outcomeType)
-        outcomeAges65plus = [a for a in outcomeAges if a >= 65]
-        personYears65plus = [a for a in personYears if a >= 65]
+        is65plus = Population.get_age_predicate(("pooled_65_plus",))
+        outcomeAges65plus = [a for a in outcomeAges if is65plus(a)]
+        personYears65plus = [a for a in personYears if is65plus(a)]
         rate65plus = len(outcomeAges65plus) / len(personYears65plus) if len(personYears65plus) > 0 else 0
         rateOverall = len(outcomeAges) / len(personYears) if len(personYears) > 0 else 0
         print(" "*25, "-"*53)
@@ -954,9 +986,10 @@ class Population:
            denominators count only currently alive people.'''
         prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
         alive = list(filter(lambda p: p.is_alive, self._people))
-        alive65plus = [p for p in alive if p._current_age >= 65]
+        is65plus = Population.get_age_predicate(("pooled_65_plus",))
+        alive65plus = [p for p in alive if is65plus(p._current_age)]
         hasOutcome = [p for p in alive if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False)]
-        hasOutcome65plus = [p for p in hasOutcome if p._current_age >= 65]
+        hasOutcome65plus = [p for p in hasOutcome if is65plus(p._current_age)]
         pooled65plus = len(hasOutcome65plus) / len(alive65plus) if len(alive65plus) > 0 else 0
         pooledOverall = len(hasOutcome) / len(alive) if len(alive) > 0 else 0
         print(" "*25, "-"*53)
