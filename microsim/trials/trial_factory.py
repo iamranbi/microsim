@@ -23,7 +23,7 @@ class TrialFactory:
                    nWorkers=1,
                    personFilters=None,
                    year=1999,
-                   nhanesWeights=False,
+                   nhanesWeights=True,
                    distributions=False,
                    prevalenceRiskScaling=None,
                    assessor=None,
