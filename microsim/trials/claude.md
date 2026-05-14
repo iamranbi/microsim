@@ -14,6 +14,7 @@ The `trials/` directory contains the experimental design framework:
 - `trial_type.py`: Trial type enumeration
 - `trial_outcome_assessor.py`: Analysis and results computation
 - `trial_outcome_assessor_factory.py`: Factory for creating outcome assessors
+- `trial_factory.py`: One-shot helpers (`TrialFactory.run_nhanes`, `TrialFactory.run_kaiser`) that build the description, run the trial, and analyze it with a default-or-supplied assessor in a single call
 - Regression analysis modules:
   - `cox_regression_analysis.py`: Cox proportional hazards analysis
   - `logistic_regression_analysis.py`: Logistic regression for binary outcomes
@@ -50,6 +51,30 @@ The `trials/` directory contains the experimental design framework:
 The assessor compares populations and generates statistical summaries of treatment effects.
 
 ## Running a Trial Simulation
+
+### Quick Path: TrialFactory
+
+For the common case (build a description, run, analyze with the default assessor),
+use `TrialFactory.run_nhanes` or `TrialFactory.run_kaiser`. Each is a single call
+that returns a completed, analyzed `Trial`:
+
+```python
+from microsim.trials.trial_factory import TrialFactory
+
+trial = TrialFactory.run_nhanes(sampleSize=1000, duration=5,
+                                treatmentStrategies="1bpMedsAdded")
+print(trial)  # formatted results table
+```
+
+`treatmentStrategies` accepts the same forms as `TrialDescription` (None, a shorthand
+string, or a `TreatmentStrategyRepository`). Pass `assessor=` to override the default
+`TrialOutcomeAssessor`. All population-specific kwargs (`year`, `nhanesWeights`,
+`distributions`, `prevalenceRiskScaling` for NHANES; `wmhSpecific`, `riskScaling` for
+Kaiser) are forwarded to the corresponding description subclass.
+
+For finer control — inspecting populations before `run()`, swapping in a custom
+assessor between `run()` and `analyze()`, or skipping analysis entirely — use the
+step-by-step process below.
 
 ### Step-by-Step Process
 
