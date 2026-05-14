@@ -1,3 +1,4 @@
+import copy
 import pandas as pd
 import numpy as np
 from itertools import product
@@ -414,6 +415,121 @@ class PopulationFactory:
 
         scopeLabel = "_".join(str(s) for s in scope)
         print(f"calibrate_prevalence: outcome={outcomeType.value} scope={scopeLabel} "
+              f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
+        return scaling
+
+    @staticmethod
+    def calibrate_prevalence_empirical(scaleOutcomeType, targetOutcomeType, target, scope,
+                                       popType, peopleArgs, baselineRiskScaling=None):
+        '''Empirically find the OutcomePrevalenceModelRepository riskScaling on
+           `scaleOutcomeType` such that the realized priorToSim prevalence of
+           `targetOutcomeType` in `scope` equals `target`.
+
+           Use this when the target outcome's prevalence depends on whether some other
+           outcome was seeded first. The canonical case is stroke/MI, whose prevalence
+           models short-circuit unless CV was seeded as priorToSim. When
+           scaleOutcomeType == targetOutcomeType the analytic calibrate_prevalence is
+           faster and exact; this function is the cross-outcome generalization.
+
+           baselineRiskScaling: optional dict[OutcomeType, float] applied to other
+                                outcomes for the duration of the calibration. Lets
+                                callers chain calibrations (e.g., pin epilepsy at a
+                                previously calibrated value while solving CV-for-stroke).
+                                The entry for scaleOutcomeType, if present, is overridden.
+
+           Implementation: constructs people once with no priorToSim seeding, snapshots
+           each in-scope person's RNG state, and per brentq iteration restores the RNG,
+           clears _outcomes, and re-runs Person.seed_prevalent_outcomes with the trial
+           scaling. The inner loop is deterministic in s irrespective of nhanesWeights.
+
+           Returns: float scaling to feed into prevalenceRiskScaling={scaleOutcomeType: s}.'''
+
+        if popType is not PopulationType.NHANES:
+            raise NotImplementedError(
+                f"calibrate_prevalence_empirical only supports PopulationType.NHANES; "
+                f"got {popType}."
+            )
+        if scaleOutcomeType in {OutcomeType.MI, OutcomeType.COGNITION}:
+            raise ValueError(
+                f"{scaleOutcomeType} prevalence model ignores riskScaling; cannot scale."
+            )
+        defaultOpmr = OutcomePrevalenceModelRepository()
+        if not defaultOpmr.has_prevalence_model(scaleOutcomeType):
+            raise ValueError(
+                f"{scaleOutcomeType} has no prevalence model registered; nothing to scale."
+            )
+        if not defaultOpmr.has_prevalence_model(targetOutcomeType):
+            raise ValueError(
+                f"{targetOutcomeType} has no prevalence model registered; nothing to measure."
+            )
+
+        order = list(OutcomeType)
+        if order.index(targetOutcomeType) < order.index(scaleOutcomeType):
+            raise ValueError(
+                f"targetOutcomeType {targetOutcomeType} is seeded before scaleOutcomeType "
+                f"{scaleOutcomeType} in OutcomeType order; cannot cascade."
+            )
+
+        if not (0. < target < 1.):
+            raise ValueError(
+                f"target must be in (0, 1) for an empirical prevalence; got {target}."
+            )
+
+        peopleArgs = {k: v for k, v in peopleArgs.items() if k != "outcomePrevalenceModelRepository"}
+
+        unseededPeople = PopulationFactory.get_nhanes_people(
+            **peopleArgs, outcomePrevalenceModelRepository=None
+        )
+        inScope = Population.get_age_predicate(scope)
+        scopePeople = [p for p in unseededPeople if inScope(p._current_age)]
+        if len(scopePeople) == 0:
+            raise ValueError(
+                f"scope {scope} matched zero constructed persons; cannot calibrate against "
+                f"an empty subset (check peopleArgs personFilters and n)."
+            )
+
+        rngStates = [copy.deepcopy(p._rng.bit_generator.state) for p in scopePeople]
+        baseScaling = dict(baselineRiskScaling or {})
+
+        def empiricalGap(logS):
+            scaling = {**baseScaling, scaleOutcomeType: math.exp(logS)}
+            opmr = OutcomePrevalenceModelRepository(riskScaling=scaling)
+            hits = 0
+            for person, state in zip(scopePeople, rngStates):
+                person._rng.bit_generator.state = copy.deepcopy(state)
+                for ot in person._outcomes:
+                    person._outcomes[ot] = []
+                person.seed_prevalent_outcomes(opmr)
+                if person.has_outcome_prior_to_simulation(targetOutcomeType):
+                    hits += 1
+            return hits / len(scopePeople) - target
+
+        lo, hi = -15.0, 15.0
+        gLo, gHi = empiricalGap(lo), empiricalGap(hi)
+        if gLo > 0 and gHi > 0:
+            raise ValueError(
+                f"target {target} for {targetOutcomeType} in scope {scope} is below the "
+                f"minimum achievable prevalence ({gLo + target:.4f}) by scaling "
+                f"{scaleOutcomeType}."
+            )
+        if gLo < 0 and gHi < 0:
+            raise ValueError(
+                f"target {target} for {targetOutcomeType} in scope {scope} is above the "
+                f"maximum achievable prevalence ({gHi + target:.4f}) by scaling "
+                f"{scaleOutcomeType}. This often means scaling {scaleOutcomeType} does not "
+                f"cascade into {targetOutcomeType}."
+            )
+        if gLo == 0:
+            scaling = math.exp(lo)
+        elif gHi == 0:
+            scaling = math.exp(hi)
+        else:
+            logScaling = brentq(empiricalGap, lo, hi, xtol=1e-4)
+            scaling = math.exp(logScaling)
+
+        scopeLabel = "_".join(str(s) for s in scope)
+        print(f"calibrate_prevalence_empirical: scale={scaleOutcomeType.value} "
+              f"target_outcome={targetOutcomeType.value} scope={scopeLabel} "
               f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
         return scaling
 

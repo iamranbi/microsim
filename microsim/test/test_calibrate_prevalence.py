@@ -233,5 +233,176 @@ class TestCalibratePrevalenceDropsOpmrFromPeopleArgs(unittest.TestCase):
         self.assertGreater(scaling, 0)
 
 
+def _measure_realized_prev(scaleOutcomeType, targetOutcomeType, scaling, scope, peopleArgs,
+                           baselineRiskScaling=None):
+    """Build people once with the chosen scaling and return realized priorToSim
+       prevalence of targetOutcomeType in scope. Mirrors what the empirical calibrator
+       converged on (deterministic peopleArgs ⇒ same persons, same RNG seeds)."""
+    rs = dict(baselineRiskScaling or {})
+    rs[scaleOutcomeType] = scaling
+    opmr = OutcomePrevalenceModelRepository(riskScaling=rs)
+    people = PopulationFactory.get_nhanes_people(
+        **peopleArgs, outcomePrevalenceModelRepository=opmr
+    )
+    inScope = Population.get_age_predicate(scope)
+    inScopePeople = [p for p in people if inScope(p._current_age)]
+    hits = sum(1 for p in inScopePeople if p.has_outcome_prior_to_simulation(targetOutcomeType))
+    return hits / len(inScopePeople)
+
+
+class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
+    def test_kaiser_pop_type_refused(self):
+        with self.assertRaises(NotImplementedError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+                targetOutcomeType=OutcomeType.STROKE,
+                target=0.05, scope=("pooled_overall",),
+                popType=PopulationType.KAISER, peopleArgs=_nhanes_args(),
+            )
+
+    def test_scale_mi_refused(self):
+        with self.assertRaises(ValueError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.MI,
+                targetOutcomeType=OutcomeType.MI,
+                target=0.05, scope=("pooled_overall",),
+                popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
+            )
+
+    def test_scale_without_prevalence_model_refused(self):
+        with self.assertRaises(ValueError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.DEATH,
+                targetOutcomeType=OutcomeType.STROKE,
+                target=0.05, scope=("pooled_overall",),
+                popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
+            )
+
+    def test_target_without_prevalence_model_refused(self):
+        with self.assertRaises(ValueError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+                targetOutcomeType=OutcomeType.DEATH,
+                target=0.05, scope=("pooled_overall",),
+                popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
+            )
+
+    def test_target_before_scale_refused(self):
+        # STROKE precedes DEMENTIA in OutcomeType order — scaling DEMENTIA cannot
+        # cascade backwards to STROKE.
+        with self.assertRaises(ValueError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.DEMENTIA,
+                targetOutcomeType=OutcomeType.STROKE,
+                target=0.05, scope=("pooled_overall",),
+                popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
+            )
+
+    def test_target_out_of_range_refused(self):
+        for bad in (0.0, 1.0, -0.1, 1.5):
+            with self.assertRaises(ValueError):
+                PopulationFactory.calibrate_prevalence_empirical(
+                    scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+                    targetOutcomeType=OutcomeType.STROKE,
+                    target=bad, scope=("pooled_overall",),
+                    popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
+                )
+
+
+class TestCalibratePrevalenceEmpiricalHitsTarget(unittest.TestCase):
+    """Cross-outcome calibration: drive realized priorToSim target prevalence to target
+       by scaling a precursor outcome. Stroke and MI both gate on prior CV in their
+       prevalence models, so scaling CV cascades into both."""
+
+    def test_cv_scale_stroke_target(self):
+        target = 0.05
+        scope = ("pooled_overall",)
+        peopleArgs = _deterministic_nhanes_args()
+        scaling = PopulationFactory.calibrate_prevalence_empirical(
+            scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+            targetOutcomeType=OutcomeType.STROKE,
+            target=target, scope=scope,
+            popType=PopulationType.NHANES, peopleArgs=peopleArgs,
+        )
+        realized = _measure_realized_prev(
+            OutcomeType.CARDIOVASCULAR, OutcomeType.STROKE, scaling, scope, peopleArgs
+        )
+        self.assertAlmostEqual(realized, target, delta=0.01)
+
+    def test_cv_scale_mi_target(self):
+        target = 0.04
+        scope = ("pooled_overall",)
+        peopleArgs = _deterministic_nhanes_args()
+        scaling = PopulationFactory.calibrate_prevalence_empirical(
+            scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+            targetOutcomeType=OutcomeType.MI,
+            target=target, scope=scope,
+            popType=PopulationType.NHANES, peopleArgs=peopleArgs,
+        )
+        realized = _measure_realized_prev(
+            OutcomeType.CARDIOVASCULAR, OutcomeType.MI, scaling, scope, peopleArgs
+        )
+        self.assertAlmostEqual(realized, target, delta=0.01)
+
+
+class TestCalibratePrevalenceEmpiricalSameOutcome(unittest.TestCase):
+    """Smoke: scale == target. Should still drive realized prevalence to target,
+       even though the analytic calibrate_prevalence is faster and exact for this case."""
+
+    def test_dementia_same_outcome_hits_target(self):
+        target = 0.10
+        scope = ("pooled_65_plus",)
+        peopleArgs = _deterministic_nhanes_args()
+        scaling = PopulationFactory.calibrate_prevalence_empirical(
+            scaleOutcomeType=OutcomeType.DEMENTIA,
+            targetOutcomeType=OutcomeType.DEMENTIA,
+            target=target, scope=scope,
+            popType=PopulationType.NHANES, peopleArgs=peopleArgs,
+        )
+        realized = _measure_realized_prev(
+            OutcomeType.DEMENTIA, OutcomeType.DEMENTIA, scaling, scope, peopleArgs
+        )
+        self.assertAlmostEqual(realized, target, delta=0.01)
+
+
+class TestCalibratePrevalenceEmpiricalNoCascade(unittest.TestCase):
+    """If scaling has no downstream effect on the target, the brentq bracket gap
+       won't change sign and the calibrator must raise rather than return a bogus value."""
+
+    def test_no_cascade_refused(self):
+        # DEMENTIA precedes EPILEPSY in OutcomeType order, but EpilepsyPrevalenceModel
+        # doesn't reference dementia status, so scaling dementia leaves epilepsy
+        # prevalence untouched.
+        with self.assertRaises(ValueError):
+            PopulationFactory.calibrate_prevalence_empirical(
+                scaleOutcomeType=OutcomeType.DEMENTIA,
+                targetOutcomeType=OutcomeType.EPILEPSY,
+                target=0.10, scope=("pooled_overall",),
+                popType=PopulationType.NHANES,
+                peopleArgs=_deterministic_nhanes_args(),
+            )
+
+
+class TestCalibratePrevalenceEmpiricalNhanesWeights(unittest.TestCase):
+    """nhanesWeights=True is the user-facing reason this function exists. The inner
+       loop is deterministic in s (rng snapshot/restore) so brentq converges even
+       though the sample itself was drawn stochastically."""
+
+    def test_cv_scale_stroke_target_weighted_sample(self):
+        # Target stays well below the racial-mix ceiling baked into the placeholder
+        # StrokePrevalenceModel coefficients (NHW has -27.3 in lp, capping reachable
+        # stroke prevalence even with CV scaling maxed out).
+        target = 0.02
+        scope = ("pooled_overall",)
+        peopleArgs = _nhanes_args(n=1000)
+        scaling = PopulationFactory.calibrate_prevalence_empirical(
+            scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
+            targetOutcomeType=OutcomeType.STROKE,
+            target=target, scope=scope,
+            popType=PopulationType.NHANES, peopleArgs=peopleArgs,
+        )
+        self.assertGreater(scaling, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
