@@ -504,8 +504,13 @@ class PopulationFactory:
                     hits += 1
             return hits / len(scopePeople) - target
 
+        # Bracket in log-space (scaling = exp(logS)): keeps scaling > 0 and is well-conditioned
+        # for log-linear prevalence models. ±15 maps to ~3e-7..3e6, wide enough to span the
+        # achievable prevalence floor/ceiling so brentq's sign-change requirement is met.
         lo, hi = -15.0, 15.0
         gLo, gHi = empiricalGap(lo), empiricalGap(hi)
+        # Both endpoints same-sign => target is outside the achievable range, not a bracketing
+        # failure; surface a specific error instead of letting brentq raise.
         if gLo > 0 and gHi > 0:
             raise ValueError(
                 f"target {target} for {targetOutcomeType} in scope {scope} is below the "
@@ -524,6 +529,9 @@ class PopulationFactory:
         elif gHi == 0:
             scaling = math.exp(hi)
         else:
+            # Brent's method: bracketed root finder combining bisection (guaranteed convergence)
+            # with secant / inverse-quadratic steps (superlinear when well-behaved). xtol is on
+            # logS, so 1e-4 ≈ 0.01% resolution on scaling — well below epidemiological precision.
             logScaling = brentq(empiricalGap, lo, hi, xtol=1e-4)
             scaling = math.exp(logScaling)
 
