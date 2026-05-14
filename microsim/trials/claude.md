@@ -53,37 +53,59 @@ The assessor compares populations and generates statistical summaries of treatme
 
 ### Step-by-Step Process
 
-1. **Create population(s)**: Use `PopulationFactory.get_nhanes_population()` or `get_kaiser_population()`
+The Trial constructs its own treated and control populations internally from the
+TrialDescription — you do not create populations and pass them in.
+
+1. **Define treatment strategies** (optional): Configure via `TreatmentStrategiesType`,
+   pass a shorthand string, or build a `TreatmentStrategyRepository` directly. `None`
+   yields an empty repository (control-only style usage).
    ```python
-   control_pop = PopulationFactory.get_nhanes_population(n=1000, year=1999)
-   treatment_pop = PopulationFactory.get_nhanes_population(n=1000, year=1999)
+   from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
+   treatmentStrategies = TreatmentStrategyRepository.from_string("...")
    ```
 
-2. **Define treatment strategies**: Configure via `TreatmentStrategiesType` or use predefined strategies
+2. **Build a population-specific TrialDescription**: Use `NhanesTrialDescription` or
+   `KaiserTrialDescription`. The base `TrialDescription` is an abstract class
+   (`abc.ABC` with an abstract `__init__`) and cannot be instantiated directly.
+   The description carries sample size, duration, trial type,
+   randomization/block factors, person filters, worker count, and population-specific
+   args (e.g. NHANES year, weights; Kaiser wmhSpecific, riskScaling).
    ```python
-   from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
-   treatment_strategy = [TreatmentStrategiesType.BP_TREATMENT]
+   from microsim.trials.trial_description import NhanesTrialDescription
+   from microsim.trials.trial_type import TrialType
+
+   description = NhanesTrialDescription(
+       trialType=TrialType.COMPLETELY_RANDOMIZED,
+       sampleSize=1000,
+       duration=5,
+       treatmentStrategies=treatmentStrategies,
+       year=1999,
+   )
    ```
 
-3. **Set up trial**: Use `Trial` class with `TrialDescription`
+3. **Instantiate the Trial**: Construction itself draws people from the
+   `PopulationFactory` and assembles the treated and control `Population` objects
+   (`trial.treatedPop`, `trial.controlPop`) via `get_trial_populations()`.
    ```python
    from microsim.trials.trial import Trial
-   from microsim.trials.trial_description import TrialDescription
-
-   description = TrialDescription(...)
    trial = Trial(description)
    ```
 
-4. **Run simulation**: Call `population.advance(years)` or `trial.run()`
+4. **Run the simulation**: `trial.run()` advances both arms — control for the full
+   duration with no treatment strategies, treated for 1 wave with strategy status
+   `INITIALIZE` and the remaining `duration-1` waves with status `MAINTAIN`.
    ```python
    trial.run()
    ```
 
-5. **Analyze results**: Use `TrialOutcomeAssessor` or population reporting methods
+5. **Analyze results**: Build a `TrialOutcomeAssessor` describing which outcomes and
+   analyses to run, then call `trial.analyze(assessor)` (or `trial.run_analyze(assessor)`
+   to do both in one step). Results are stored in `trial.results`, keyed by
+   `AnalysisType.value` then by assessment name.
    ```python
-   from microsim.trials.trial_outcome_assessor import TrialOutcomeAssessor
-   assessor = TrialOutcomeAssessor(trial)
-   results = assessor.assess()
+   from microsim.trials.trial_outcome_assessor_factory import TrialOutcomeAssessorFactory
+   assessor = TrialOutcomeAssessorFactory.get_trial_outcome_assessor(...)
+   trial.analyze(assessor)
    ```
 
 ## Testing Trial Components
