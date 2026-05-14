@@ -20,7 +20,7 @@ The `trials/` directory contains the experimental design framework:
   - `linear_regression_analysis.py`: Linear regression for continuous outcomes
   - `relative_risk_analysis.py`: Relative risk calculations
   - `regression_analysis.py`: Base regression analysis class
-- `trialset.py`: Management of multiple related trials
+- `trialset.py`: Management of multiple related trials. **Not functional — needs to be updated before use.**
 
 ## Trial Components
 
