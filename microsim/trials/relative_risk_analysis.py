@@ -52,7 +52,7 @@ class RelativeRiskAnalysis:
         cRisk, cRiskCiLower, cRiskCiUpper, cRiskCiLowerWilson, cRiskCiUpperWilson = self.get_absolute_risk(controlCounts, nTotal) #control
         tAnyMedsAdded = trial.treatedPop.has_any_meds_added() #alive, treated, is None when person is not in any treatment strategies
         tAnyMedsAdded = list(filter(lambda x: x is not None, tAnyMedsAdded)) #filter out the Nones
-        tProportionWithMedsAdded = sum(tAnyMedsAdded)/len(tAnyMedsAdded)
+        tProportionWithMedsAdded = sum(tAnyMedsAdded)/len(tAnyMedsAdded) if len(tAnyMedsAdded)>0 else 0
         diff = tRisk-cRisk #definition is treated - control, consistent with confint_proportions_2indep
         tEfficiency = diff/tProportionWithMedsAdded if tProportionWithMedsAdded!=0 else float('inf') 
         rdCiLow, rdCiUpp = self.get_risk_difference_ci(treatedCounts, nTotal, controlCounts, nTotal)
