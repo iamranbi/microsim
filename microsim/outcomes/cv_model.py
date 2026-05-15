@@ -157,7 +157,7 @@ class CVPrevalenceModel(OutcomePrevalenceBase):
     _outcomeType = OutcomeType.CARDIOVASCULAR
 
     def __init__(self, riskScaling=1.0):
-        self._intercept = -13.9
+        self._intercept = -7.16
         self._riskScaling = riskScaling
 
     def get_linear_predictor_for_person(self, person):
@@ -185,40 +185,42 @@ class CVPrevalenceModel(OutcomePrevalenceBase):
         dbp,
         totChol,
     ):
-        xb = self._intercept + ( - 7.98 / 20.23 ) * 51.77
+        xb = self._intercept + ( - 1.57 / 18.97 ) * 55.02
 
-        xb += ( 7.98 / 20.23 ) * age
+        xb += ( 1.57 / 18.97 ) * age
 
         if gender == NHANESGender.FEMALE:
-            xb += -7.10
+            xb += -1.
         elif gender == NHANESGender.MALE:
             xb += 0.  # reference
 
         if raceEthnicity == RaceEthnicity.NON_HISPANIC_WHITE:
-            xb += -0.732
+            xb += -0.473
         elif raceEthnicity == RaceEthnicity.ASIAN:
             xb += 0.
         elif raceEthnicity == RaceEthnicity.NON_HISPANIC_BLACK:
-            xb += -0.07
+            xb += 0.110
         elif raceEthnicity == RaceEthnicity.OTHER_HISPANIC:
-            xb += -0.52
+            xb += 0.0359
         elif raceEthnicity == RaceEthnicity.OTHER:
-            xb += -1.68
+            xb += -0.134
 
         if education == Education.LESSTHANHIGHSCHOOL: 
             xb += 0.  # reference
         elif education == Education.SOMEHIGHSCHOOL:
-            xb += -0.432
+            xb += 0.535
         elif education == Education.HIGHSCHOOLGRADUATE:
-            xb += 0.859
-        elif (education == Education.SOMECOLLEGE) | (education == Education.COLLEGEGRADUATE):
-            xb += 0.764
+            xb += 0.352
+        elif education == Education.SOMECOLLEGE:
+            xb += 0.316
+        elif education == Education.COLLEGEGRADUATE:
+            xb += 0.203
 
         if smokingStatus == SmokingStatus.NEVER:
             xb += 0.  # reference
         elif smokingStatus == SmokingStatus.FORMER:
-            xb += -3.99
+            xb += -0.105
         elif smokingStatus == SmokingStatus.CURRENT:
-            xb += 4.95
+            xb += 0.803
 
         return xb
