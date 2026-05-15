@@ -12,6 +12,7 @@ from microsim.person_factory import PersonFactory
 from microsim.person_filter_factory import PersonFilterFactory
 from microsim.person_filter import PersonFilter
 from microsim.population import Population
+from microsim.age_scope import AgeScope
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.population_model_repository import PopulationModelRepository, PopulationRepositoryType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
@@ -340,8 +341,9 @@ class PopulationFactory:
                         COGNITION do not honor it and are refused.
            target:      desired prevalence in (0, 1) for expit-based models, or a non-negative
                         rate for the epilepsy rate model.
-           scope:       passed to Population.get_age_predicate; one of
-                        ("age", k) | ("age_group", "a-b") | ("pooled_65_plus",) | ("pooled_overall",)
+           scope:       an AgeScope instance restricting which persons contribute
+                        to the calibration, e.g. AgeScope(65, None) for age>=65,
+                        AgeScope(70, 74), or AgeScope() for all ages.
            popType:     PopulationType.NHANES is supported. Kaiser inlines its prevalence calls
                         in person_factory.get_kaiser_person and does not honor riskScaling; refused.
            peopleArgs:  dict forwarded to get_nhanes_people(**peopleArgs). Same shape as
@@ -378,8 +380,7 @@ class PopulationFactory:
         )
 
         model = defaultOpmr._repository[outcomeType]._model
-        inScope = Population.get_age_predicate(scope)
-        scopePeople = [p for p in unseededPeople if inScope(p._current_age)]
+        scopePeople = [p for p in unseededPeople if scope.contains(p._current_age)]
         if len(scopePeople) == 0:
             raise ValueError(
                 f"scope {scope} matched zero constructed persons; cannot calibrate against an "
@@ -413,8 +414,7 @@ class PopulationFactory:
             logScaling = brentq(gap, lo, hi, xtol=1e-8)
             scaling = math.exp(logScaling)
 
-        scopeLabel = "_".join(str(s) for s in scope)
-        print(f"calibrate_prevalence: outcome={outcomeType.value} scope={scopeLabel} "
+        print(f"calibrate_prevalence: outcome={outcomeType.value} scope={scope.label} "
               f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
         return scaling
 
@@ -480,8 +480,7 @@ class PopulationFactory:
         unseededPeople = PopulationFactory.get_nhanes_people(
             **peopleArgs, outcomePrevalenceModelRepository=None
         )
-        inScope = Population.get_age_predicate(scope)
-        scopePeople = [p for p in unseededPeople if inScope(p._current_age)]
+        scopePeople = [p for p in unseededPeople if scope.contains(p._current_age)]
         if len(scopePeople) == 0:
             raise ValueError(
                 f"scope {scope} matched zero constructed persons; cannot calibrate against "
@@ -535,9 +534,8 @@ class PopulationFactory:
             logScaling = brentq(empiricalGap, lo, hi, xtol=1e-4)
             scaling = math.exp(logScaling)
 
-        scopeLabel = "_".join(str(s) for s in scope)
         print(f"calibrate_prevalence_empirical: scale={scaleOutcomeType.value} "
-              f"target_outcome={targetOutcomeType.value} scope={scopeLabel} "
+              f"target_outcome={targetOutcomeType.value} scope={scope.label} "
               f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
         return scaling
 

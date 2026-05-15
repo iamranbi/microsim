@@ -4,9 +4,9 @@ import unittest
 import numpy as np
 from scipy.special import expit
 
+from microsim.age_scope import AgeScope
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
-from microsim.population import Population
 from microsim.population_factory import PopulationFactory
 from microsim.population_type import PopulationType
 from microsim.person_filter_factory import PersonFilterFactory
@@ -32,42 +32,40 @@ def _deterministic_nhanes_args():
             "nhanesWeights": False, "distributions": False}
 
 
-class TestGetAgePredicate(unittest.TestCase):
-    def test_single_age_matches_exact(self):
-        pred = Population.get_age_predicate(("age", 75))
-        self.assertTrue(pred(75))
-        self.assertFalse(pred(74))
-        self.assertFalse(pred(76))
+class TestAgeScope(unittest.TestCase):
+    def test_exact_age_matches(self):
+        scope = AgeScope(75, 75)
+        self.assertTrue(scope.contains(75))
+        self.assertFalse(scope.contains(74))
+        self.assertFalse(scope.contains(76))
 
     def test_age_group_inclusive_both_ends(self):
-        pred = Population.get_age_predicate(("age_group", "70-74"))
+        scope = AgeScope(70, 74)
         for age in (70, 71, 72, 73, 74):
-            self.assertTrue(pred(age))
-        self.assertFalse(pred(69))
-        self.assertFalse(pred(75))
+            self.assertTrue(scope.contains(age))
+        self.assertFalse(scope.contains(69))
+        self.assertFalse(scope.contains(75))
 
     def test_pooled_65_plus(self):
-        pred = Population.get_age_predicate(("pooled_65_plus",))
-        self.assertFalse(pred(64))
-        self.assertTrue(pred(65))
-        self.assertTrue(pred(120))
+        scope = AgeScope(lo=65)
+        self.assertFalse(scope.contains(64))
+        self.assertTrue(scope.contains(65))
+        self.assertTrue(scope.contains(120))
 
     def test_pooled_overall_accepts_everything(self):
-        pred = Population.get_age_predicate(("pooled_overall",))
+        scope = AgeScope()
         for age in (0, 18, 65, 95):
-            self.assertTrue(pred(age))
+            self.assertTrue(scope.contains(age))
 
-    def test_bad_age_group_label_raises(self):
+    def test_lo_greater_than_hi_raises(self):
         with self.assertRaises(ValueError):
-            Population.get_age_predicate(("age_group", "seventy"))
+            AgeScope(75, 70)
 
-    def test_unknown_kind_raises(self):
-        with self.assertRaises(ValueError):
-            Population.get_age_predicate(("bogus",))
-
-    def test_non_tuple_raises(self):
-        with self.assertRaises(ValueError):
-            Population.get_age_predicate("pooled_65_plus")
+    def test_labels(self):
+        self.assertEqual(AgeScope().label, "pooled_overall")
+        self.assertEqual(AgeScope(lo=65).label, "pooled_65_plus")
+        self.assertEqual(AgeScope(70, 74).label, "age_group_70-74")
+        self.assertEqual(AgeScope(75, 75).label, "age_75")
 
 
 class TestCalibratePrevalenceRefusals(unittest.TestCase):
@@ -76,7 +74,7 @@ class TestCalibratePrevalenceRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence(
                 outcomeType=OutcomeType.DEMENTIA,
                 target=0.1,
-                scope=("pooled_65_plus",),
+                scope=AgeScope(lo=65),
                 popType=PopulationType.KAISER,
                 peopleArgs=_nhanes_args(),
             )
@@ -86,7 +84,7 @@ class TestCalibratePrevalenceRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence(
                 outcomeType=OutcomeType.MI,
                 target=0.1,
-                scope=("pooled_65_plus",),
+                scope=AgeScope(lo=65),
                 popType=PopulationType.NHANES,
                 peopleArgs=_nhanes_args(),
             )
@@ -96,7 +94,7 @@ class TestCalibratePrevalenceRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence(
                 outcomeType=OutcomeType.COGNITION,
                 target=0.1,
-                scope=("pooled_65_plus",),
+                scope=AgeScope(lo=65),
                 popType=PopulationType.NHANES,
                 peopleArgs=_nhanes_args(),
             )
@@ -106,7 +104,7 @@ class TestCalibratePrevalenceRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence(
                 outcomeType=OutcomeType.DEATH,
                 target=0.1,
-                scope=("pooled_65_plus",),
+                scope=AgeScope(lo=65),
                 popType=PopulationType.NHANES,
                 peopleArgs=_nhanes_args(),
             )
@@ -117,7 +115,7 @@ class TestCalibratePrevalenceRefusals(unittest.TestCase):
                 PopulationFactory.calibrate_prevalence(
                     outcomeType=OutcomeType.DEMENTIA,
                     target=bad,
-                    scope=("pooled_65_plus",),
+                    scope=AgeScope(lo=65),
                     popType=PopulationType.NHANES,
                     peopleArgs=_nhanes_args(),
                 )
@@ -133,13 +131,12 @@ class TestCalibratePrevalenceAnalyticHitsTarget(unittest.TestCase):
             **peopleArgs, outcomePrevalenceModelRepository=None
         )
         model = OutcomePrevalenceModelRepository()._repository[outcomeType]._model
-        inScope = Population.get_age_predicate(scope)
-        lps = [model.get_linear_predictor_for_person(p) for p in people if inScope(p._current_age)]
+        lps = [model.get_linear_predictor_for_person(p) for p in people if scope.contains(p._current_age)]
         return float(np.mean(expit(np.array(lps) + math.log(scaling))))
 
     def test_dementia_pooled_65_plus_hits_target(self):
         target = 0.10
-        scope = ("pooled_65_plus",)
+        scope = AgeScope(lo=65)
         peopleArgs = _deterministic_nhanes_args()
         scaling = PopulationFactory.calibrate_prevalence(
             outcomeType=OutcomeType.DEMENTIA,
@@ -153,7 +150,7 @@ class TestCalibratePrevalenceAnalyticHitsTarget(unittest.TestCase):
 
     def test_cv_pooled_overall_hits_target(self):
         target = 0.15
-        scope = ("pooled_overall",)
+        scope = AgeScope()
         peopleArgs = _deterministic_nhanes_args()
         scaling = PopulationFactory.calibrate_prevalence(
             outcomeType=OutcomeType.CARDIOVASCULAR,
@@ -172,11 +169,11 @@ class TestCalibratePrevalenceAnalyticHitsTarget(unittest.TestCase):
            coefficients are all zero, so lp is constant across age subsets.)"""
         peopleArgs = _deterministic_nhanes_args()
         scaling65 = PopulationFactory.calibrate_prevalence(
-            outcomeType=OutcomeType.CARDIOVASCULAR, target=0.10, scope=("pooled_65_plus",),
+            outcomeType=OutcomeType.CARDIOVASCULAR, target=0.10, scope=AgeScope(lo=65),
             popType=PopulationType.NHANES, peopleArgs=peopleArgs,
         )
         scalingAll = PopulationFactory.calibrate_prevalence(
-            outcomeType=OutcomeType.CARDIOVASCULAR, target=0.10, scope=("pooled_overall",),
+            outcomeType=OutcomeType.CARDIOVASCULAR, target=0.10, scope=AgeScope(),
             popType=PopulationType.NHANES, peopleArgs=peopleArgs,
         )
         self.assertNotAlmostEqual(scaling65, scalingAll, places=2)
@@ -187,7 +184,7 @@ class TestCalibratePrevalenceMonotone(unittest.TestCase):
 
     def test_dementia_higher_target_requires_larger_scaling(self):
         peopleArgs = _deterministic_nhanes_args()
-        scope = ("pooled_65_plus",)
+        scope = AgeScope(lo=65)
         scalingLo = PopulationFactory.calibrate_prevalence(
             outcomeType=OutcomeType.DEMENTIA, target=0.05, scope=scope,
             popType=PopulationType.NHANES, peopleArgs=peopleArgs,
@@ -206,7 +203,7 @@ class TestCalibratePrevalenceEpilepsyRateModel(unittest.TestCase):
 
     def test_doubling_target_doubles_scaling(self):
         peopleArgs = _deterministic_nhanes_args()
-        scope = ("pooled_overall",)
+        scope = AgeScope()
         s1 = PopulationFactory.calibrate_prevalence(
             outcomeType=OutcomeType.EPILEPSY, target=0.01, scope=scope,
             popType=PopulationType.NHANES, peopleArgs=peopleArgs,
@@ -227,7 +224,7 @@ class TestCalibratePrevalenceDropsOpmrFromPeopleArgs(unittest.TestCase):
         peopleArgs = _deterministic_nhanes_args()
         peopleArgs["outcomePrevalenceModelRepository"] = OutcomePrevalenceModelRepository()
         scaling = PopulationFactory.calibrate_prevalence(
-            outcomeType=OutcomeType.DEMENTIA, target=0.10, scope=("pooled_65_plus",),
+            outcomeType=OutcomeType.DEMENTIA, target=0.10, scope=AgeScope(lo=65),
             popType=PopulationType.NHANES, peopleArgs=peopleArgs,
         )
         self.assertGreater(scaling, 0)
@@ -244,8 +241,7 @@ def _measure_realized_prev(scaleOutcomeType, targetOutcomeType, scaling, scope, 
     people = PopulationFactory.get_nhanes_people(
         **peopleArgs, outcomePrevalenceModelRepository=opmr
     )
-    inScope = Population.get_age_predicate(scope)
-    inScopePeople = [p for p in people if inScope(p._current_age)]
+    inScopePeople = [p for p in people if scope.contains(p._current_age)]
     hits = sum(1 for p in inScopePeople if p.has_outcome_prior_to_simulation(targetOutcomeType))
     return hits / len(inScopePeople)
 
@@ -256,7 +252,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
                 targetOutcomeType=OutcomeType.STROKE,
-                target=0.05, scope=("pooled_overall",),
+                target=0.05, scope=AgeScope(),
                 popType=PopulationType.KAISER, peopleArgs=_nhanes_args(),
             )
 
@@ -265,7 +261,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.MI,
                 targetOutcomeType=OutcomeType.MI,
-                target=0.05, scope=("pooled_overall",),
+                target=0.05, scope=AgeScope(),
                 popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
             )
 
@@ -274,7 +270,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.DEATH,
                 targetOutcomeType=OutcomeType.STROKE,
-                target=0.05, scope=("pooled_overall",),
+                target=0.05, scope=AgeScope(),
                 popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
             )
 
@@ -283,7 +279,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
                 targetOutcomeType=OutcomeType.DEATH,
-                target=0.05, scope=("pooled_overall",),
+                target=0.05, scope=AgeScope(),
                 popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
             )
 
@@ -294,7 +290,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.DEMENTIA,
                 targetOutcomeType=OutcomeType.STROKE,
-                target=0.05, scope=("pooled_overall",),
+                target=0.05, scope=AgeScope(),
                 popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
             )
 
@@ -304,7 +300,7 @@ class TestCalibratePrevalenceEmpiricalRefusals(unittest.TestCase):
                 PopulationFactory.calibrate_prevalence_empirical(
                     scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
                     targetOutcomeType=OutcomeType.STROKE,
-                    target=bad, scope=("pooled_overall",),
+                    target=bad, scope=AgeScope(),
                     popType=PopulationType.NHANES, peopleArgs=_nhanes_args(),
                 )
 
@@ -316,7 +312,7 @@ class TestCalibratePrevalenceEmpiricalHitsTarget(unittest.TestCase):
 
     def test_cv_scale_stroke_target(self):
         target = 0.05
-        scope = ("pooled_overall",)
+        scope = AgeScope()
         peopleArgs = _deterministic_nhanes_args()
         scaling = PopulationFactory.calibrate_prevalence_empirical(
             scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
@@ -331,7 +327,7 @@ class TestCalibratePrevalenceEmpiricalHitsTarget(unittest.TestCase):
 
     def test_cv_scale_mi_target(self):
         target = 0.04
-        scope = ("pooled_overall",)
+        scope = AgeScope()
         peopleArgs = _deterministic_nhanes_args()
         scaling = PopulationFactory.calibrate_prevalence_empirical(
             scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
@@ -351,7 +347,7 @@ class TestCalibratePrevalenceEmpiricalSameOutcome(unittest.TestCase):
 
     def test_dementia_same_outcome_hits_target(self):
         target = 0.10
-        scope = ("pooled_65_plus",)
+        scope = AgeScope(lo=65)
         peopleArgs = _deterministic_nhanes_args()
         scaling = PopulationFactory.calibrate_prevalence_empirical(
             scaleOutcomeType=OutcomeType.DEMENTIA,
@@ -377,7 +373,7 @@ class TestCalibratePrevalenceEmpiricalNoCascade(unittest.TestCase):
             PopulationFactory.calibrate_prevalence_empirical(
                 scaleOutcomeType=OutcomeType.DEMENTIA,
                 targetOutcomeType=OutcomeType.EPILEPSY,
-                target=0.10, scope=("pooled_overall",),
+                target=0.10, scope=AgeScope(),
                 popType=PopulationType.NHANES,
                 peopleArgs=_deterministic_nhanes_args(),
             )
@@ -393,7 +389,7 @@ class TestCalibratePrevalenceEmpiricalNhanesWeights(unittest.TestCase):
         # StrokePrevalenceModel coefficients (NHW has -27.3 in lp, capping reachable
         # stroke prevalence even with CV scaling maxed out).
         target = 0.02
-        scope = ("pooled_overall",)
+        scope = AgeScope()
         peopleArgs = _nhanes_args(n=1000)
         scaling = PopulationFactory.calibrate_prevalence_empirical(
             scaleOutcomeType=OutcomeType.CARDIOVASCULAR,
