@@ -1,0 +1,75 @@
+import unittest
+
+from microsim.trials.trial import Trial
+from microsim.trials.trial_factory import TrialFactory
+from microsim.trials.trial_outcome_assessor import AnalysisType
+
+
+class TestTrialFactoryNhanes(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.trial = TrialFactory.run_nhanes(sampleSize=50,
+                                            duration=2,
+                                            treatmentStrategies="1bpMedsAdded",
+                                            year=1999,
+                                            nhanesWeights=True,
+                                            notify=False)
+
+    def test_returns_trial(self):
+        self.assertIsInstance(self.trial, Trial)
+
+    def test_trial_is_completed(self):
+        self.assertTrue(self.trial.completed)
+
+    def test_trial_is_analyzed(self):
+        self.assertTrue(self.trial.analyzed)
+
+    def test_results_non_empty(self):
+        self.assertGreater(len(self.trial.results), 0)
+
+    def test_results_contain_default_analyses(self):
+        for analysisType in (AnalysisType.LOGISTIC, AnalysisType.LINEAR,
+                             AnalysisType.COX, AnalysisType.RELATIVE_RISK,
+                             AnalysisType.INCIDENCE_RATE):
+            self.assertIn(analysisType.value, self.trial.results)
+
+    def test_populations_have_expected_size(self):
+        self.assertEqual(len(self.trial.treatedPop._people) +
+                         len(self.trial.controlPop._people), 100)
+
+
+class TestTrialFactoryKaiser(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.trial = TrialFactory.run_kaiser(sampleSize=50,
+                                            duration=2,
+                                            treatmentStrategies="1bpMedsAdded",
+                                            notify=False)
+
+    def test_returns_trial(self):
+        self.assertIsInstance(self.trial, Trial)
+
+    def test_trial_is_completed(self):
+        self.assertTrue(self.trial.completed)
+
+    def test_trial_is_analyzed(self):
+        self.assertTrue(self.trial.analyzed)
+
+    def test_results_non_empty(self):
+        self.assertGreater(len(self.trial.results), 0)
+
+    def test_results_contain_default_analyses(self):
+        for analysisType in (AnalysisType.LOGISTIC, AnalysisType.LINEAR,
+                             AnalysisType.COX, AnalysisType.RELATIVE_RISK,
+                             AnalysisType.INCIDENCE_RATE):
+            self.assertIn(analysisType.value, self.trial.results)
+
+    def test_populations_have_expected_size(self):
+        self.assertEqual(len(self.trial.treatedPop._people) +
+                         len(self.trial.controlPop._people), 100)
+
+
+if __name__ == "__main__":
+    unittest.main()

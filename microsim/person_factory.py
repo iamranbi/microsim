@@ -1,31 +1,33 @@
 import numpy as np
 import pandas as pd
 
-from microsim.alcohol_category import AlcoholCategory
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.risk_model_repository import RiskModelRepository
-from microsim.outcome import Outcome, OutcomeType
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
+from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.person import Person
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.treatment import DefaultTreatmentsType, TreatmentStrategiesType
-from microsim.stroke_outcome import StrokeOutcome
-from microsim.afib_model import AFibPrevalenceModel
-from microsim.pvd_model import PVDPrevalenceModel
-from microsim.waist_model import WaistPrevalenceModel
-from microsim.education_model import EducationPrevalenceModel
-from microsim.alcohol_model import AlcoholPrevalenceModel
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
+from microsim.outcomes.stroke_outcome import StrokeOutcome
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.population_type import PopulationType
-from microsim.modality_model import ModalityPrevalenceModel
-from microsim.wmh_model_repository import WMHModelRepository
+from microsim.outcomes.wmh_model_repository import WMHModelRepository
+from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
+from microsim.outcomes.cognition_model import CognitionPrevalenceModel
+from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 
 class PersonFactory:
     """A class used to obtain Person-objects using data from a variety of sources."""
 
     #a dictionary with microsim attributes as keys and dataframe column names as values.
-    #Useful to convert column names from the NHANES data to the names Microsim uses.'''
+    #This maps microsim standardized person attributes to the non-standardized NHANES dataframe.
+    #Useful to convert column names from the NHANES data to the names Microsim uses.
+    #We could avoid the use of this dictionary if we could standardize all inputs coming from 
+    #dataframes but this could be impossible since some dataframes are created by others, with their own codebooks, column names etc.
     #Q: this probably belongs somewhere else...but I also need to avoid circular imports...
     microsimToNhanes = {DynamicRiskFactorsType.SBP.value: "meanSBP",
                     DynamicRiskFactorsType.DBP.value: "meanDBP",
@@ -64,9 +66,9 @@ class PersonFactory:
                     DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: "N_AntiHTNperYR"}
 
     @staticmethod
-    def get_person(x, popType=PopulationType.NHANES.value):
+    def get_person(x, popType=PopulationType.NHANES.value, initializationModelRepository=None, outcomePrevalenceModelRepository=None):
         if popType==PopulationType.NHANES.value:
-            return PersonFactory.get_nhanes_person(x)
+            return PersonFactory.get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=outcomePrevalenceModelRepository)
         elif popType==PopulationType.KAISER.value:
             return PersonFactory.get_kaiser_person(x)
         else:
@@ -79,12 +81,14 @@ class PersonFactory:
         rng = np.random.default_rng()
 
         name = x.name
-   
+ 
+        adult = x.age>=18. #need to know for making the right bounds with the risk model repository below  
+  
         personStaticRiskFactors = {
-                            StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(int(x.raceEthnicity)),
-                            StaticRiskFactorsType.EDUCATION.value: Education(int(x.education)),
-                            StaticRiskFactorsType.GENDER.value: NHANESGender(int(x.gender)),
-                            StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(int(x.smokingStatus)),
+                            StaticRiskFactorsType.RACE_ETHNICITY.value: RaceEthnicity(x.raceEthnicity),
+                            StaticRiskFactorsType.EDUCATION.value: Education(x.education),
+                            StaticRiskFactorsType.GENDER.value: NHANESGender(x.gender),
+                            StaticRiskFactorsType.SMOKING_STATUS.value: SmokingStatus(x.smokingStatus),
                             StaticRiskFactorsType.MODALITY.value: None}
    
         #use this to get the bounds imposed on the risk factors in a bit
@@ -100,7 +104,7 @@ class PersonFactory:
                 personDynamicRiskFactors[rfd.value] = AlcoholCategory(x[rfd.value])
             else:
                 if (rfd!=DynamicRiskFactorsType.PVD) & (rfd!=DynamicRiskFactorsType.AFIB):
-                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value])
+                    personDynamicRiskFactors[rfd.value] = rfRepository.apply_bounds(rfd.value, x[rfd.value], adult=adult)
         personDynamicRiskFactors[DynamicRiskFactorsType.AFIB.value] = None
         personDynamicRiskFactors[DynamicRiskFactorsType.PVD.value] = None
 
@@ -108,7 +112,7 @@ class PersonFactory:
         #A: it is ok to leave it out as we do not have a model to update this. It is also very rarely taking place in the population anyway.
         #also: used to have round(x.statin) but NHANES includes statin=2...
         personDefaultTreatments = {
-                            DefaultTreatmentsType.STATIN.value: bool(x.statin),
+                            DefaultTreatmentsType.STATIN.value: x.statin,
                             #DefaultTreatmentsType.OTHER_LIPID_LOWERING_MEDICATION_COUNT.value: x.otherLipidLowering,
                             DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value: x.antiHypertensiveCount}
 
@@ -119,33 +123,42 @@ class PersonFactory:
         personOutcomes = dict(zip([outcome for outcome in OutcomeType],
                                   [list() for outcome in range(len(OutcomeType))]))
 
-        #If df originates from the NHANES df these columns will exist, but if drawing from the NHANES distributions, these will not be in the df
-        if "selfReportStrokeAge" in x.index:
-            #add pre-simulation stroke outcomes
-            selfReportStrokeAge=x.selfReportStrokeAge
-            #Q: we should not add the stroke outcome in case of "else"? A: No, this is the way it should be
-            if selfReportStrokeAge is not None and selfReportStrokeAge > 1:
-                selfReportStrokeAge = selfReportStrokeAge if selfReportStrokeAge <= x.age else x.age
-                personOutcomes[OutcomeType.STROKE].append((selfReportStrokeAge, StrokeOutcome(False, None, None, None, priorToSim=True)))
-        if "selfReportMIAge" in x.index:
-            #add pre-simulation mi outcomes
-            selfReportMIAge=rng.integers(18, x.age) if x.selfReportMIAge == 99999 else x.selfReportMIAge
-            if selfReportMIAge is not None and selfReportMIAge > 1:
-                selfReportMIAge = selfReportMIAge if selfReportMIAge <= x.age else x.age
-                personOutcomes[OutcomeType.MI].append((selfReportMIAge, Outcome(OutcomeType.MI, False, priorToSim=True)))
+        #priorToSim outcome seeding via selfReport columns is retired in favor of logistic
+        #prevalence models registered in OutcomePrevalenceModelRepository, applied in
+        #get_nhanes_person via Person.seed_prevalent_outcomes after construction.
+        ##If df originates from the NHANES df these columns will exist, but if drawing from the NHANES distributions, these will not be in the df
+        #if "selfReportStrokeAge" in x.index:
+        #    #add pre-simulation stroke outcomes
+        #    selfReportStrokeAge=x.selfReportStrokeAge
+        #    #Q: we should not add the stroke outcome in case of "else"? A: No, this is the way it should be
+        #    if selfReportStrokeAge is not None and selfReportStrokeAge > 1:
+        #        personOutcomes[OutcomeType.STROKE].append((None, StrokeOutcome(False, None, None, None, priorToSim=True)))
+        #if "selfReportMIAge" in x.index:
+        #    #add pre-simulation mi outcomes
+        #    selfReportMIAge=rng.integers(18, x.age) if x.selfReportMIAge == 99999 else x.selfReportMIAge
+        #    if selfReportMIAge is not None and selfReportMIAge > 1:
+        #        personOutcomes[OutcomeType.MI].append((None, Outcome(OutcomeType.MI, False, priorToSim=True)))
+
+        #if personDynamicRiskFactors[DynamicRiskFactorsType.A1C.value] >= 6.5:
+        #    personOutcomes[OutcomeType.DIABETES].append((None, Outcome(OutcomeType.DIABETES, False, priorToSim=True)))
 
         return (name, personStaticRiskFactors, personDynamicRiskFactors, personDefaultTreatments, personTreatmentStrategies, personOutcomes)
 
     @staticmethod
-    def get_nhanes_person(x):
+    def get_nhanes_person(x, initializationModelRepository, outcomePrevalenceModelRepository=None):
         """Takes all Person-instance-related data via x and initializationModelRepository and organizes it,
-           passes the organized data to the Person class and returns a Person instance."""
+           passes the organized data to the Person class and returns a Person instance.
+           initializationModelRepository: required. Pass a shared instance when constructing many
+           persons (see PopulationFactory.get_nhanes_people); build it via
+           InitializationModelRepository() from microsim.risk_factors.initialization_model_repository.
+           outcomePrevalenceModelRepository: pass a shared instance when constructing many persons.
+           When omitted, priorToSim outcome seeding is skipped."""
 
-        (name, 
-         personStaticRiskFactors, 
-         personDynamicRiskFactors, 
-         personDefaultTreatments, 
-         personTreatmentStrategies, 
+        (name,
+         personStaticRiskFactors,
+         personDynamicRiskFactors,
+         personDefaultTreatments,
+         personTreatmentStrategies,
          personOutcomes) = PersonFactory.get_nhanes_person_init_information(x)
 
         person = Person(name,
@@ -156,23 +169,14 @@ class PersonFactory:
                         personOutcomes)
 
         #TO DO: find a way to initialize these rfs above with everything else
-        imr = PersonFactory.initialization_model_repository()
-        person._pvd = [imr[DynamicRiskFactorsType.PVD.value].estimate_next_risk(person)]
-        person._afib = [imr[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
-        person._modality = imr[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
-        return person
+        person._pvd = [initializationModelRepository[DynamicRiskFactorsType.PVD.value].estimate_next_risk(person)]
+        person._afib = [initializationModelRepository[DynamicRiskFactorsType.AFIB.value].estimate_next_risk(person)]
+        person._modality = initializationModelRepository[StaticRiskFactorsType.MODALITY.value].estimate_next_risk(person)
 
-    @staticmethod
-    def initialization_model_repository():
-        """Returns the repository needed in order to initialize a Person object.
-           This is due to the fact that some risk factors that are needed in Microsim simulations
-           are not included in the data we use to construct persons but we have models for these risk factors. """
-        return {DynamicRiskFactorsType.AFIB.value: AFibPrevalenceModel(),
-                DynamicRiskFactorsType.PVD.value: PVDPrevalenceModel(),
-                DynamicRiskFactorsType.WAIST.value: WaistPrevalenceModel(),
-                StaticRiskFactorsType.EDUCATION.value: EducationPrevalenceModel(),
-                DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value: AlcoholPrevalenceModel(),
-                StaticRiskFactorsType.MODALITY.value: ModalityPrevalenceModel()}
+        if outcomePrevalenceModelRepository is not None:
+            person.seed_prevalent_outcomes(outcomePrevalenceModelRepository)
+
+        return person
 
     @staticmethod
     def get_kaiser_person_init_information(x):
@@ -224,7 +228,7 @@ class PersonFactory:
                         personTreatmentStrategies,
                         personOutcomes)
     
-        imr = PersonFactory.initialization_model_repository()
+        imr = InitializationModelRepository()
         person._waist = [imr[DynamicRiskFactorsType.WAIST.value].estimate_next_risk(person)]
         person._alcoholPerWeek = [imr[DynamicRiskFactorsType.ALCOHOL_PER_WEEK.value].estimate_next_risk(person)]
         person._education = imr[StaticRiskFactorsType.EDUCATION.value].estimate_next_risk(person)
@@ -233,7 +237,13 @@ class PersonFactory:
         #the CV risks requires knowledge of wmh severity and the rest of the wmh parameters, so I am adding this outcome here... 
         outcome = WMHModelRepository().select_outcome_model_for_person(person).get_next_outcome(person)
         person.add_outcome(outcome)
-        
+ 
+        outcome = EpilepsyPrevalenceModel().get_prevalent_outcome(person)
+        person.add_outcome(outcome)
+
+        cognitionOutcome = CognitionPrevalenceModel().get_prevalent_outcome(person)
+        person.add_outcome(cognitionOutcome)
+
         return person
 
 

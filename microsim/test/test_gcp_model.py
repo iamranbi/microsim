@@ -2,20 +2,21 @@ import unittest
 import pandas as pd
 
 from microsim.person import Person
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.gcp_model import GCPModel
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.cognition_model import GCPModel
 from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
 )
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 
 class AlwaysNegativeOutcomeRepository(OutcomeModelRepository):
     def __init__(self):
@@ -52,7 +53,7 @@ class TestGCPModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_one"}, index=[0])
-        self._test_case_one = PersonFactory.get_nhanes_person(self.x_test_case_one.iloc[0])
+        self._test_case_one = PersonFactory.get_nhanes_person(self.x_test_case_one.iloc[0], InitializationModelRepository())
         self._test_case_one._afib = [False]
 
         self.x_test_case_two = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 65 - 0.458555784 * 10,
@@ -75,7 +76,7 @@ class TestGCPModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_two"}, index=[0])
-        self._test_case_two = PersonFactory.get_nhanes_person(self.x_test_case_two.iloc[0])
+        self._test_case_two = PersonFactory.get_nhanes_person(self.x_test_case_two.iloc[0], InitializationModelRepository())
         self._test_case_two._afib = [False]
 
         self.x_test_case_three = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 65 - 0.358692676 * 10,
@@ -98,7 +99,7 @@ class TestGCPModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "test_case_three"}, index=[0])
-        self._test_case_three = PersonFactory.get_nhanes_person(self.x_test_case_three.iloc[0])
+        self._test_case_three = PersonFactory.get_nhanes_person(self.x_test_case_three.iloc[0], InitializationModelRepository())
         self._test_case_three._afib = [False]
 
         self._test_case_one._randomEffects["gcp"] = 0

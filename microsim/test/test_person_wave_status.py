@@ -1,24 +1,25 @@
 from microsim.person import Person
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.outcome_model_repository import OutcomeModelRepository
-from microsim.outcome import Outcome
-from microsim.alcohol_category import AlcoholCategory
-from microsim.outcome import OutcomeType
-from microsim.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.outcomes.outcome import OutcomeType
+from microsim.risk_factors.education import Education
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
-from microsim.gcp_model import GCPModel
-from microsim.dementia_model import DementiaModel
+from microsim.outcomes.cognition_model import GCPModel
+from microsim.outcomes.dementia_model import DementiaModel
 from microsim.person_factory import PersonFactory
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.outcome_models_repositories import *
-from microsim.treatment import DefaultTreatmentsType
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.population_factory import PopulationFactory
 from microsim.static_risk_factor_over_time_repository import StaticDefaultTreatmentModelRepository, StaticRiskFactorOverTimeRepository
-from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-                                                   CohortStaticRiskFactorModelRepository,
-                                                   CohortDefaultTreatmentModelRepository)
+from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository,
+                                                   CohortStaticRiskFactorModelRepository)
+from microsim.default_treatments.default_treatment_model_repository import DefaultTreatmentModelRepository
 
 import unittest
 import numpy as np
@@ -46,7 +47,7 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "oldJoe"}, index=[0])
-        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0])
+        self.oldJoe = PersonFactory.get_nhanes_person(xoldJoe.iloc[0], InitializationModelRepository())
         self.oldJoe._afib = [False]
 
         xyoungJoe = pd.DataFrame({DynamicRiskFactorsType.AGE.value: 40,
@@ -69,12 +70,12 @@ class TestPersonWaveStatus(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "youngJoe"}, index=[0])
-        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0])
+        self.youngJoe = PersonFactory.get_nhanes_person(xyoungJoe.iloc[0], InitializationModelRepository())
         self.youngJoe._afib = [False]
 
     def testStatusAfterFatalStroke(self):
         self.youngJoe.advance(2, CohortDynamicRiskFactorModelRepository(), 
-                                 CohortDefaultTreatmentModelRepository(), 
+                                 DefaultTreatmentModelRepository(), 
                                    AgeOver50CausesFatalStroke(),
                                    None)
         self.assertEqual(41, self.youngJoe._age[-1])
@@ -87,13 +88,13 @@ class TestPersonWaveStatus(unittest.TestCase):
             self.youngJoe.alive_at_start_of_wave(2)
 
         self.youngJoe.advance(1, CohortDynamicRiskFactorModelRepository(),  
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesFatalStroke(),
                                    None)
         self.assertEqual(True, self.youngJoe.alive_at_start_of_wave(2))
 
         self.oldJoe.advance(2, CohortDynamicRiskFactorModelRepository(),  
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesFatalStroke(),
                                    None)
         self.assertEqual(60, self.oldJoe._age[-1])
@@ -109,7 +110,7 @@ class TestPersonWaveStatus(unittest.TestCase):
 
     def testNonCVMortalityLeadsToCorrectStatus(self):
         self.youngJoe.advance(2, CohortDynamicRiskFactorModelRepository(),  
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesNonCVMortality(),
                                    None)
         self.assertEqual(41, self.youngJoe._age[-1])
@@ -122,13 +123,13 @@ class TestPersonWaveStatus(unittest.TestCase):
             self.youngJoe.alive_at_start_of_wave(2)
 
         self.youngJoe.advance(1, CohortDynamicRiskFactorModelRepository(),
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesNonCVMortality(),
                                    None)
         self.assertEqual(True, self.youngJoe.alive_at_start_of_wave(2))
 
         self.oldJoe.advance(2, CohortDynamicRiskFactorModelRepository(),
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesNonCVMortality(),
                                    None)
         self.assertEqual(60, self.oldJoe._age[-1])
@@ -143,7 +144,7 @@ class TestPersonWaveStatus(unittest.TestCase):
 
     def testHasFatalStrokeInWaveIsCaptured(self):
         self.oldJoe.advance(2, CohortDynamicRiskFactorModelRepository(),
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    AgeOver50CausesFatalStroke(),
                                    None)
         self.assertEqual(True, self.oldJoe.has_stroke_during_simulation())
@@ -158,7 +159,7 @@ class TestPersonWaveStatus(unittest.TestCase):
 
     def testNonFatalStrokeInWaveWithNonCVDeathIsCaptured(self):
         self.oldJoe.advance(1, CohortDynamicRiskFactorModelRepository(),
-                                   CohortDefaultTreatmentModelRepository(),
+                                   DefaultTreatmentModelRepository(),
                                    NonFatalStrokeAndNonCVMortality(),
                                    None)
         self.assertEqual(True, self.oldJoe.has_stroke_during_simulation())

@@ -3,14 +3,14 @@ import pandas as pd
 
 from microsim.population_factory import PopulationFactory
 from microsim.person_filter_factory import PersonFilterFactory
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.trials.trial_description import NhanesTrialDescription
 from microsim.trials.trial import Trial
 from microsim.trials.trial_outcome_assessor_factory import TrialOutcomeAssessorFactory
 from microsim.trials.trial_outcome_assessor import AnalysisType
 from microsim.trials.trial_type import TrialType
-from microsim.outcome import OutcomeType
+from microsim.outcomes.outcome import OutcomeType
 
 class Validation:
 
@@ -27,6 +27,9 @@ class Validation:
         pf.add_filter(filterType="df",
                       filterName="lowAntiHypertensiveLimit",
                       filterFunction = lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]>0)
+        pf.add_filter(filterType="df",
+                      filterName="adults",
+                      filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2013, personFilters=pf, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
 

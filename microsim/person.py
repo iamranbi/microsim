@@ -7,31 +7,20 @@ import logging
 
 from typing import Callable
 
-from microsim.education import Education
-from microsim.gender import NHANESGender
-from microsim.outcome import Outcome, OutcomeType
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.smoking_status import SmokingStatus
-from microsim.alcohol_category import AlcoholCategory
-from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.gender import NHANESGender
+from microsim.outcomes.outcome import Outcome, OutcomeType
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 from microsim.gfr_equation import GFREquation
-from microsim.pvd_model import PVDPrevalenceModel
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.treatment import TreatmentStrategiesType, TreatmentStrategyStatus, DefaultTreatmentsType
-from microsim.modality import Modality
-from microsim.wmh_severity import WMHSeverity
-
-# luciana-tag...lne thing that tripped me up was probable non clear communication regarding "waves"
-# so, i'm going to spell it out here and try to make the code consistent.
-# a patient starts in teh simulation prior to a wave with their baseline attribute statuses(i.e subscript [0])
-# wave "1" refers to the transition from subscript[0] to subscript[1]
-# wave "2" the transition from subscript[1] to subscript[2]
-# thus, the pateint's status at the start of wave 1 is represented by subscript[0]
-# and the patient status at the end of wave 1 is represtened by subscript[1]
-# if a patient has an event during a wave, that means they will not have the status at the start of the wave
-# and they will have the status at the end of the wave.
-# so, if a patient has an event during wave 1, their status would be Negatve at subscript[0] and
-# Positive at subscript[1]
+from microsim.risk_factors.pvd_model import PVDPrevalenceModel
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
+from microsim.risk_factors.modality import Modality
+from microsim.outcomes.wmh_severity import WMHSeverity
 
 class Person:
     """Person is using risk factors and demographics based off NHANES.
@@ -209,32 +198,22 @@ class Person:
             else:
                 raise RuntimeError(f"{treatmentStrategyType}: Treatment strategy status None or end are the only ones that can move to status None.")
             
-        #if self._treatmentStrategies[treatmentStrategyType.value]["status"] is None:
-        #    if treatmentStrategy is not None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.BEGIN
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.BEGIN:
-        #    if treatmentStrategy is not None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.MAINTAIN
-        #    else:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.END
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.MAINTAIN:
-        #    if treatmentStrategy is None: 
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.END 
-        #elif self._treatmentStrategies[treatmentStrategyType.value]["status"] == TreatmentStrategyStatus.END:
-        #    if treatmentStrategy is None:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = None
-        #    else:
-        #        self._treatmentStrategies[treatmentStrategyType.value]["status"] = TreatmentStrategyStatus.BEGIN 
-        #else:
-        #    raise RuntimeError("Unrecognized person treatment strategy status.") 
-        #    #setattr(self,"_"+tsType.value+"TreatmentStatus", ts.status) 
-
     def advance_outcomes(self, outcomeModelRepository):
         """Predict the outcomes of the person for the next year (1 year only)."""
-        #With outcomes the situation is complex, because the loop needs to go over the outcomes in a specific order
-        #which means I cannot just use the keys of a dictionary, the outcomes will need to be set in a list
-        for outcomeType in self.get_outcomes_in_order():
+        for outcomeType in self.get_outcomes_in_order(): #loop needs to go over the outcomes in a specific order
             outcome = outcomeModelRepository._repository[outcomeType].select_outcome_model_for_person(self).get_next_outcome(self)
+            self.add_outcome(outcome)
+
+    def seed_prevalent_outcomes(self, outcomePrevalenceModelRepository):
+        """Seed the person's priorToSim outcomes from the prevalence model repository.
+           One-shot initialization at construction (not a wave advance): iterates outcome types in
+           the same order as advance_outcomes and skips types with no registered prevalence model
+           (value is None in the repository)."""
+        for outcomeType in self.get_outcomes_in_order():
+            perOutcomeRepo = outcomePrevalenceModelRepository._repository[outcomeType]
+            if perOutcomeRepo is None:
+                continue
+            outcome = perOutcomeRepo.select_outcome_model_for_person(self).get_prevalent_outcome(self)
             self.add_outcome(outcome)
 
     def get_outcomes_in_order(self):
@@ -248,9 +227,11 @@ class Person:
     def add_outcome(self, outcome):
         """Adds the outcome to the person object."""
         if outcome is not None:
-            self._outcomes[outcome.type].append((self._current_age, outcome))
+            age = None if outcome.priorToSim else self._current_age
+            self._outcomes[outcome.type].append((age, outcome))
 
     def has_outcome_at_current_age(self, outcome):
+        """This function would probably be meaningfully used at the end of a wave, when outcomes have been predicted"""
         ageAtLastOutcome = self.get_age_at_last_outcome(outcome)
         if (ageAtLastOutcome is None) | (self._current_age!=ageAtLastOutcome):
             return False
@@ -258,6 +239,7 @@ class Person:
             return True
     
     def has_fatal_outcome_at_current_age(self, outcome):
+        """This function would probably be meaningfully used at the end of a wave, when outcomes have been predicted"""
         if self.has_outcome_at_current_age(outcome):
             return True if self._outcomes[outcome][-1][1].fatal else False
         else:
@@ -267,6 +249,61 @@ class Person:
     def is_in_bp_treatment(self):
         return ( (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.BEGIN) |
                  (self._treatmentStrategies[TreatmentStrategiesType.BP.value]["status"]==TreatmentStrategyStatus.MAINTAIN) )
+
+    def is_in_treatment_strategy(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function checks if a person is part of a treatment strategy but does not check if the person is being assigned
+        additional medications as part of the treatment strategy.'''
+        #TO DO: unclear right now if the status should not be END either (in addition to None)
+        #that means that status should be either BEGIN or MAINTAIN
+        return self._treatmentStrategies[tst]["status"] is not None
+
+    def is_in_any_treatment_strategy(self):
+        for tst in TreatmentStrategiesType:
+            if self.is_in_treatment_strategy(tst.value):
+                return True
+        return False
+            
+    def get_treatment_strategies_with_participation(self):
+        '''Returns a list of treatment strategies where the person is participating in, based on the
+        is_in_treatment_strategy function'''
+        tstList = list()
+        for tst in TreatmentStrategiesType:
+            if self.is_in_treatment_strategy(tst.value):
+                tstList += [tst.value]
+        return tstList
+
+    def has_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function checks if a person is actively receiving additional medications as part of a treatment strategy,
+        ie not just participating in a treatment strategy'''
+        if self.is_in_treatment_strategy(tst):
+            medsAdded = self._treatmentStrategies[tst][tst+"MedsAdded"]
+            return True if medsAdded>0 else False
+        else:
+            return None #because that was a meaningless application of this function
+
+    def has_any_meds_added(self):
+        '''This function checks if a person is receiving additional medications as part of any treatment strategy.'''
+        if self.is_in_any_treatment_strategy():
+            for tst in TreatmentStrategiesType:
+                if self.is_in_treatment_strategy(tst.value):
+                    if self.has_meds_added(tst.value):
+                        return True
+            return False
+        else:
+            return None #that was a meaningless question to ask
+         
+    def get_treatment_strategies_with_meds_added(self):
+        '''Returns a list with the treatment strategies where the person has actually medications for, based on the
+        has_meds_added function'''
+        tstList = list()
+        for tst in TreatmentStrategiesType:
+            if self.has_meds_added(tst.value):
+                tstList += [tst.value]
+        return tstList
+
+    def get_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        '''This function returns the number of meds added through the provided treatment strategy.'''
+        return self._treatmentStrategies[tst][tst+"MedsAdded"]
 
     def _antiHypertensiveCountPlusBPMedsAdded(self):
         antiHypertensiveCount = getattr(self, "_"+DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value)[-1]
@@ -312,7 +349,10 @@ class Person:
  
     @property
     def _baselineGcp(self):
-        return self._outcomes[OutcomeType.COGNITION][0][1].gcp
+        inSimCognition = [o for o in self._outcomes[OutcomeType.COGNITION] if not o[1].priorToSim]
+        if len(inSimCognition) == 0:
+            raise RuntimeError("No in-simulation cognition outcome available for baseline GCP.")
+        return inSimCognition[0][1].gcp
 
     @property
     def _gcpSlope(self):
@@ -404,7 +444,7 @@ class Person:
     # generlized logistic function mapping GCP to MMSE in combined cohrot data
     def get_current_mmse(self):
         numerator = 30  # ceiling effect
-        denominator = (0.9924 + np.exp(-0.0795 * self._gcp[-1])) ** (1 / 0.1786)
+        denominator = (0.9924 + np.exp(-0.0795 * self._outcomes[OutcomeType.COGNITION][-1][1].gcp)) ** (1 / 0.1786)
         return numerator / denominator
 
     @property
@@ -422,14 +462,18 @@ class Person:
     def has_incident_event(self, outcomeType):
         # luciana-tag..this feels messy there is probably a better way to deal weith this.
         # age is updated after dementia events are set, so "incident demetnia" is dementia as of the last wave
+        inSimOutcomes = self.get_outcomes_during_simulation(outcomeType)
         return (
-            (len(self._outcomes[outcomeType]) > 0)
+            (len(inSimOutcomes) > 0)
             and (len(self._age) >= 2)
-            and (self._outcomes[outcomeType][0][0] == self._age[-2])
+            and (inSimOutcomes[0][0] == self._age[-2])
         )
 
     def has_incident_dementia(self):
         return self.has_incident_event(OutcomeType.DEMENTIA)
+
+    def has_epilepsy(self):
+        return self.has_outcome(OutcomeType.EPILEPSY, inSim=False)
 
     @property
     def _black(self):
@@ -539,6 +583,18 @@ class Person:
     def has_ci(self):
         return self.has_cognitive_impairement()
 
+    def has_mild_cognitive_impairment(self, inSim=True):
+        '''Assesses if GCP is below 1.5 standard deviations from the average GCP for that age and year in simulation
+        This linear regression model for the average gcp by age and year in simulation was developed by using a simulated NHANES population
+        A similar linear regression model was derived for the standard deviations by age and year in simulation but that showed that the
+        standard deviations were essentially constant'''
+        gcpMean = 72.3182 + -0.2945 * self._current_age  + -0.5884 * self.get_years_in_simulation() #takes into account years in simulation and age
+        gcpCutoff = gcpMean - 1.5 * 9.05
+        return self.get_outcome_item_last(OutcomeType.COGNITION, "gcp", inSim=inSim) < gcpCutoff
+
+    def has_mci(self, inSim=True):
+        return self.has_mild_cognitive_impairment(inSim=inSim)
+
     def get_outcome_item(self, outcomeType, phenotypeItem, inSim=True):
         return list(map(lambda x: getattr(x[1], phenotypeItem), self.get_outcomes(outcomeType, inSim=inSim)))
 
@@ -597,8 +653,11 @@ class Person:
         return False
     
     def has_outcome_by_age(self, outcomeType, age, inSim=True):
-        for outcome_tuple in self._outcomes[outcomeType]:
-            if (outcome_tuple[0]<=age) & (not outcome_tuple[1].priorToSim):
+        for outcome_age, outcome in self._outcomes[outcomeType]:
+            if outcome.priorToSim:
+                if not inSim:
+                    return True
+            elif outcome_age <= age:
                 return True
         return False
 
@@ -614,6 +673,14 @@ class Person:
             return self.get_outcomes(outcomeType, inSim=inSim)[0][0]
         else:
             return None
+
+    def get_at_risk_age_at_first_outcome(self, outcomeType):
+        '''Returns the age of the first in-sim outcome only when the person was at risk for first
+           incidence (no priorToSim outcome). Returns None if the person had a priorToSim outcome
+           or had no in-sim event.'''
+        if self.has_outcome_prior_to_simulation(outcomeType):
+            return None
+        return self.get_age_at_first_outcome(outcomeType, inSim=True)
 
     def get_min_age_of_first_outcomes(self, outcomeTypeList, inSim=True):
         firstAgeList = list(map(lambda x: self.get_age_at_first_outcome(x, inSim=inSim), outcomeTypeList))
@@ -749,19 +816,52 @@ class Person:
     def get_person_years_with_outcome_by_end_of_wave(self, outcomeType=OutcomeType.STROKE, wave=3):
         '''Returns the number of person years during which person has outcome.
         Note that wave starts from 0 with a population, so wave=0 would be the end of the first wave.'''
-        outcomes = self._outcomes[outcomeType]
+        outcomes = self.get_outcomes_during_simulation(outcomeType)
         #keep age of outcome, convert age to waveForAge, check if waveForAge is less than wave, then count how many
         personYearsWithOutcome = len(list(filter(lambda y: y<=wave, map(lambda x: self.get_wave_for_age(x[0]), outcomes))))
         if (personYearsWithOutcome<0) | (personYearsWithOutcome>wave):
             raise RuntimeError("{personYearsWithOutcome=} cannot be <0 or >{wave}")
         return personYearsWithOutcome
 
-    def get_person_years_at_risk_by_end_of_wave(self, wave=3):
-        '''Returns the number of person years during which this person could have had an outcome.'''
-        personAges = getattr(self, "_"+DynamicRiskFactorsType.AGE.value)
-        #convert ages to waves, keep waves less than max wave set by the argument, count how many
-        personYearsAtRisk = len(list(filter(lambda y: y<=wave, map(lambda x: self.get_wave_for_age(x), personAges))))
+    def get_person_years_at_risk_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+        '''Returns the person-years that this object could have had an outcome, any outcome in the outcome list.'''
+        minOrLastWave = self.get_min_wave_of_first_outcomes_or_last_wave(outcomesTypeList) # eg 5
+        personYearsAtRisk = min(minOrLastWave, wave) + 1 #with wave=3: 3 + 1
         return personYearsAtRisk
+
+    def get_ages(self):
+        '''Returns a list with the ages of the person'''
+        return getattr(self, "_"+DynamicRiskFactorsType.AGE.value)
+
+    def get_at_risk_ages(self, outcomeType):
+        '''Returns the person's at-risk ages for first incidence of outcomeType:
+           - empty list if the person had a priorToSim outcome (never at risk for first incidence)
+           - all ages if no in-sim event occurred
+           - ages truncated at the first in-sim event age (inclusive) otherwise
+           Used as person-year contribution to the at-risk denominator for first-incidence rates.'''
+        if self.has_outcome_prior_to_simulation(outcomeType):
+            return []
+        firstAge = self.get_age_at_first_outcome(outcomeType, inSim=True)
+        return self.get_ages() if firstAge is None else [a for a in self.get_ages() if a <= firstAge]
+
+    def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the ages of the person that did have outcome'''
+        return list(map(lambda x: x[0], self.get_outcomes_during_simulation(outcomeType)))
+
+    def get_ages_without_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the ages of the person that did not have the outcome'''
+        ages = set(self.get_ages())
+        agesWithOutcome = set(self.get_ages_with_outcome(outcomeType=outcomeType))
+        agesWithoutOutcome = ages - agesWithOutcome 
+        return list(agesWithoutOutcome)
+
+    def has_wmh(self):
+        '''a person is defined as having wmh if wmh is set to True in the outcome or if sbi is set to True in the outcome
+        For now in the Kaiser population there is only one WMH at most outcome so I am using the first outcome here'''
+        if self.has_outcome(OutcomeType.WMH):
+            return True if (self.get_outcome_item_first(OutcomeType.WMH, "wmh") | self.get_outcome_item_first(OutcomeType.WMH, "sbi")) else False
+        else:
+            return False
 
     def get_scd_group(self):
         '''This function categorizes the Person object based on their WMH outcome.

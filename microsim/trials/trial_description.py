@@ -1,18 +1,17 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
 
 from microsim.population_factory import PopulationType
 from microsim.trials.trial_type import TrialType
-from microsim.treatment_strategy_repository import TreatmentStrategyRepository
-from microsim.treatment import TreatmentStrategiesType
-from microsim.bp_treatment_strategies import AddNBPMedsTreatmentStrategy, AddBPTreatmentMedsToGoal120, NoBPTreatment, SprintTreatment
+from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
+from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 
-class TrialDescription:
-    '''This instance will hold information about the setup of a Trial instance, information that is common to all Trials.
-    However, a user should not initialize this class directly because this class does not correspond to a specific population type. 
-    This class holds information generic to trials of all population types.
-    The user should initialize TrialDescription classes that are specific for the population they intend to use.
-    Those specific TrialDescription classes are subclases of TrialDescription.
-    If a user does attempt to use an instance of this class with a trial they will get an error as self.popType is set to None.
+class TrialDescription(ABC):
+    '''Abstract base class holding trial setup information common to all population types.
+    Cannot be instantiated directly: use a population-specific subclass such as
+    NhanesTrialDescription or KaiserTrialDescription, which define popType and the
+    population-specific peopleArgs/modelRepoArgs needed by Trial.
     trialType: indicates what type of trial we want to run
     blockFactors: a list of the block factors, for randomization, to be used in the setup and analysis of the trial
                    must be an empty list if block factors will not be used
@@ -27,13 +26,14 @@ class TrialDescription:
     _rng: numpy random number generator for randomization of the trial
     popType: the population type to be used in the trial
     '''
-    def __init__(self, 
-                 trialType=TrialType.COMPLETELY_RANDOMIZED, 
+    @abstractmethod
+    def __init__(self,
+                 trialType=TrialType.COMPLETELY_RANDOMIZED,
                  blockFactors=list(),
-                 sampleSize=100, 
-                 duration=5, 
-                 treatmentStrategies=None, 
-                 nWorkers=1, 
+                 sampleSize=100,
+                 duration=5,
+                 treatmentStrategies=None,
+                 nWorkers=1,
                  personFilters=None):
         self.trialType = trialType
         self.blockFactors = blockFactors           
@@ -47,47 +47,14 @@ class TrialDescription:
         self.is_valid_trial()
         
     def get_treatment_strategy(self, treatmentStrategies):
-        '''With this function, an attempt is made to lower the usage barrier of the treatment strategies
-        by providing a link between a string, eg "1bpMedsAdded", and the setup of that treatment strategy so that the user does not 
-       need to manually do all that for a commonly used treatment strategy.
-       If a user does need to manually control in a detailed way the trial treatment strategy then they can still do it
-       and provide the treatment strategy in the initialization of this class.
-       So, the goal of this function is to make it easy to use some common treatment strategies while allow for the flexibility
-       of using highly specific treatment strategies.'''
-        if treatmentStrategies is None: 
+        '''Coerce the user-supplied treatmentStrategies argument into a TreatmentStrategyRepository.
+        Accepts None (empty repository), a shorthand string forwarded to
+        TreatmentStrategyRepository.from_string, or an already-constructed repository.'''
+        if treatmentStrategies is None:
             return TreatmentStrategyRepository()
-        elif type(treatmentStrategies)==str:
-            if treatmentStrategies=="1bpMedsAdded":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = AddNBPMedsTreatmentStrategy(1)
-                return ts
-            elif treatmentStrategies=="2bpMedsAdded":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = AddNBPMedsTreatmentStrategy(2)
-                return ts
-            elif treatmentStrategies=="3bpMedsAdded":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = AddNBPMedsTreatmentStrategy(3)
-                return ts
-            elif treatmentStrategies=="4bpMedsAdded":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = AddNBPMedsTreatmentStrategy(4)
-                return ts
-            elif treatmentStrategies=="toGoal120":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = AddBPTreatmentMedsToGoal120()
-                return ts
-            elif treatmentStrategies=="noTreatment":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = NoBPTreatment()
-                return ts
-            elif treatmentStrategies=="sprint":
-                ts = TreatmentStrategyRepository()
-                ts._repository[TreatmentStrategiesType.BP.value] = SprintTreatment()
-                return ts
-            else:
-                raise RuntimeError("Unrecognized treatmentStrategies argument in TrialDescription initialization.")
-        elif type(treatmentStrategies)==TreatmentStrategyRepository:
+        elif isinstance(treatmentStrategies, str):
+            return TreatmentStrategyRepository.from_string(treatmentStrategies)
+        elif isinstance(treatmentStrategies, TreatmentStrategyRepository):
             return treatmentStrategies
         else:
             raise RuntimeError("Unrecognized treatmentStrategies argument in TrialDescription initialization.")
@@ -148,7 +115,7 @@ class TrialDescription:
         rep += f"\tBlock factors: {self.blockFactors}\n"
         rep += f"\tSample size: {self.sampleSize}\n"
         rep += f"\tDuration: {self.duration}\n"
-        rep += f"\tTreatment strategies: {list(self.treatmentStrategies._repository.keys())}\n"
+        rep += f"\tTreatment strategies: {[key for key, value in self.treatmentStrategies._repository.items() if value is not None]}\n"
         rep += f"\tNumber of workers: {self.nWorkers}\n"
         rep += f"\tPerson filters: \n\t {self.personFilters}"
         return rep
@@ -161,26 +128,30 @@ class NhanesTrialDescription(TrialDescription):
     It holds the information needed for all trials, those are provided to the initialization of the
     superclass TrialDescription, and in addition it holds all information related to the NHANES population.
     An instance of this class can be used to initialize the Trial class.'''
-    def __init__(self, 
-                 trialType=TrialType.COMPLETELY_RANDOMIZED, 
+    def __init__(self,
+                 trialType=TrialType.COMPLETELY_RANDOMIZED,
                  blockFactors=list(),
-                 sampleSize=100, 
-                 duration=5, 
-                 treatmentStrategies=TreatmentStrategyRepository(), 
-                 nWorkers=1, 
+                 sampleSize=100,
+                 duration=5,
+                 treatmentStrategies=TreatmentStrategyRepository(),
+                 nWorkers=1,
                  personFilters=None,
-                 year=1999, 
-                 nhanesWeights=False, 
-                 distributions=False):
+                 year=1999,
+                 nhanesWeights=False,
+                 distributions=False,
+                 prevalenceRiskScaling=None):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)
         self.year = year
         self.nhanesWeights=nhanesWeights
         self.distributions=distributions
-        self.popArgs = {"n":self.sampleSize,
-                        "year":self.year,
-                        "personFilters":self.personFilters,
-                        "nhanesWeights":self.nhanesWeights,
-                        "distributions":self.distributions}
+        self.prevalenceRiskScaling = prevalenceRiskScaling
+        self.peopleArgs = {"n":self.sampleSize,
+                           "year":self.year,
+                           "personFilters":self.personFilters,
+                           "nhanesWeights":self.nhanesWeights,
+                           "distributions":self.distributions,
+                           "outcomePrevalenceModelRepository": OutcomePrevalenceModelRepository(riskScaling=prevalenceRiskScaling)}
+        self.modelRepoArgs = {}
         self.popType = PopulationType.NHANES
 
     def __str__(self):
@@ -204,15 +175,19 @@ class KaiserTrialDescription(TrialDescription):
                  treatmentStrategies=TreatmentStrategyRepository(),
                  nWorkers=1,
                  personFilters=None,
-                 wmhSpecific=True):
+                 wmhSpecific=True,
+                 riskScaling=None):
         super().__init__(trialType, blockFactors, sampleSize, duration, treatmentStrategies, nWorkers=nWorkers, personFilters=personFilters)
-        self._wmhSpecific = wmhSpecific
-        self.popArgs = {"n":self.sampleSize,
-                        "personFilters":self.personFilters,
-                        "wmhSpecific": self._wmhSpecific}
+        self.wmhSpecific = wmhSpecific
+        self.riskScaling = riskScaling
+        self.peopleArgs = {"n":self.sampleSize,
+                           "personFilters":self.personFilters}
+        self.modelRepoArgs = {"wmhSpecific": self.wmhSpecific,
+                              "riskScaling": self.riskScaling}
         self.popType = PopulationType.KAISER
 
     def __str__(self):
         rep = super().__str__()
-        rep += f"\n\tPopulation type: {self.popType}"
+        rep += f"\n\twmhSpecific: {self.wmhSpecific}\n"
+        rep += f"\tPopulation type: {self.popType}"
         return rep

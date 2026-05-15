@@ -4,39 +4,36 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-#from pandarallel import pandarallel
+import itertools
 from collections import Counter
 
-#from microsim.alcohol_category import AlcoholCategory
-from microsim.bp_treatment_strategies import *
-#from microsim.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository, 
-#                                                   CohortStaticRiskFactorModelRepository,
-#                                                   CohortDefaultTreatmentModelRepository)
+from microsim.treatment_strategies.bp_treatment_strategies import *
 from microsim.data_loader import (get_absolute_datafile_path,
                                   load_regression_model)
-#from microsim.education import Education
-from microsim.gender import NHANESGender
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.gfr_equation import GFREquation
 from microsim.initialization_repository import InitializationRepository
 from microsim.nhanes_risk_model_repository import NHANESRiskModelRepository
-from microsim.outcome import Outcome, OutcomeType
-from microsim.outcome_model_repository import OutcomeModelRepository
+from microsim.outcomes.outcome import Outcome, OutcomeType, EventOutcomeType
+from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
-from microsim.qaly_assignment_strategy import QALYAssignmentStrategy
-#from microsim.race_ethnicity import RaceEthnicity
-#from microsim.smoking_status import SmokingStatus
+from microsim.age_scope import AgeScope
+from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
 from microsim.statsmodel_logistic_risk_factor_model import \
     StatsModelLogisticRiskFactorModel
-from microsim.stroke_outcome import StrokeOutcome
-from microsim.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType
-#from microsim.afib_model import AFibPrevalenceModel
-#from microsim.pvd_model import PVDPrevalenceModel
-from microsim.treatment import DefaultTreatmentsType, TreatmentStrategiesType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType, ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType
+from microsim.outcomes.stroke_outcome import StrokeOutcome
+from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType, CategoricalDefaultTreatmentsType, ContinuousDefaultTreatmentsType
+from microsim.treatment_strategies.treatment_strategies import ContinuousTreatmentStrategiesType, CategoricalTreatmentStrategiesType, TreatmentStrategiesType
 from microsim.population_model_repository import PopulationRepositoryType, PopulationModelRepository
 from microsim.standardized_population import StandardizedPopulation
-from microsim.risk_model_repository import RiskModelRepository
-from microsim.wmh_severity import WMHSeverity
+from microsim.risk_factors.risk_model_repository import RiskModelRepository
+from microsim.outcomes.wmh_severity import WMHSeverity
 
 class Population:
     """A Population-instance has three main parts:
@@ -132,7 +129,9 @@ class Population:
         eg NHANESDirectSamplePopulation. The fact that we are not dividing the NHANESDirectSamplePopulation in smaller
         NHANESDirectSamplePopulation instances for now does not create a problem since we continue to use NHANES Person objects
         and the same population model repositories. Returns a list of Population instances. """
-        peopleParts = np.array_split(self._people, nPieces)
+        #I am assuming that the split will happen at the beginning of the simulation when all person objects are still needed (not dead)
+        #peopleParts = np.array_split(self._people, nPieces) #do not do this, as numpy will no longer allow this
+        peopleParts = [self._people.iloc[indices] for indices in np.array_split(np.arange(self._n), nPieces)]
         modelRepositoryParts = [self.get_pop_model_repository_copy() for x in range(nPieces)]
         return [Population(people, modelRepository) for people, modelRepository in zip(peopleParts, modelRepositoryParts)]
 
@@ -199,18 +198,35 @@ class Population:
     def get_attr(self, attr):
         return list(map(lambda x: getattr(x, "_"+attr), self._people))
 
-    def get_age_counts(self, itemList):
-        counts = dict()
-        for item in range(int(min(itemList)),int(max(itemList)+1)):
-            counts[item] = len(list(filter(lambda x: x==item, itemList)))
-        return counts
+    def get_ages_group_counter(self, agesCounter):
+        '''agesCounter: Counter instance with keys the ages and values the counts for that age.
+        Returns a dictionary with keys the age group string and values the counts for that age group.'''
+        agesGroupCounter = dict()
+        groupSize = 5 #default size of age group
+        for age, count in agesCounter.items():
+            groupStart = (age//groupSize)*groupSize
+            groupEnd = groupStart + groupSize - 1
+            groupKey = f"{groupStart}-{groupEnd}"
+            agesGroupCounter[groupKey] = agesGroupCounter.get(groupKey, 0) + count
+        return Counter(agesGroupCounter)
 
     def get_age_at_first_outcome(self, outcomeType, inSim=True):
-        #we get None from Person objects that had no outcome
+        '''First-outcome ages across all people (Nones filtered).
+           NOTE: For recurrent outcomes (e.g., STROKE, MI) with inSim=True, a priorToSim case can
+           contribute its in-sim recurrence age here, since that recurrence is the first in-sim
+           event. That is NOT a first incidence in the cohort sense. For first-incidence analyses,
+           use get_at_risk_age_at_first_outcome instead, which excludes priorToSim cases entirely.'''
         ages = list(map(lambda x: x.get_age_at_first_outcome(outcomeType, inSim=inSim), self._people))
-        #remove Nones 
         ages = list(filter(lambda x: x is not None,ages))
         return ages
+
+    def get_at_risk_age_at_first_outcome(self, outcomeType):
+        '''First in-sim outcome ages, restricted to people without a priorToSim outcome
+           (the at-risk set for first incidence). Delegates to Person.get_at_risk_age_at_first_outcome.
+           Use this for first-incidence rate calculations; use get_age_at_first_outcome only when
+           you genuinely want first in-sim events including recurrences.'''
+        ages = map(lambda p: p.get_at_risk_age_at_first_outcome(outcomeType), self._people)
+        return list(filter(lambda a: a is not None, ages))
 
     def get_min_age_of_first_outcomes(self, outcomeTypeList, inSim=True):
         return list(map(lambda x: x.get_min_age_of_first_outcomes(outcomeTypeList, inSim=inSim), self._people))
@@ -224,24 +240,62 @@ class Population:
     def get_min_wave_of_first_outcomes_or_last_wave(self, outcomeTypeList, inSim=True):
         return list(map(lambda x: x.get_min_wave_of_first_outcomes_or_last_wave(outcomeTypeList, inSim=inSim), self._people))
 
-    def get_age_of_all_years_in_sim(self):
-        ages = list(map(lambda x: getattr(x, "_"+DynamicRiskFactorsType.AGE.value), self._people))
-        ages = [x for sublist in ages for x in sublist]
+    def get_ages(self):
+        '''Returns a list with the ages, from all years of the simulation, of the entire population as the elements'''
+        ages = map(lambda x: x.get_ages(), self._people) #nested list of lists with ages
+        ages = list(itertools.chain.from_iterable(ages)) #flattened list of ages
         return ages
 
-    def get_raw_incidence_by_age(self, outcomeType):
-        outcomeIncidenceAges = self.get_age_at_first_outcome(outcomeType)
-        ages = self.get_age_of_all_years_in_sim()
-        outcomeCounts = self.get_age_counts(outcomeIncidenceAges)
-        ageCounts = self.get_age_counts(ages)
-        outcomeIncidenceRate = dict()
-        for age in ageCounts.keys():
-            #second conditional avoids division by 0 
-            if (age in outcomeCounts.keys()) & (ageCounts[age]!=0):
-                outcomeIncidenceRate[age] = outcomeCounts[age]/ageCounts[age]
+    def get_at_risk_ages(self, outcomeType):
+        '''Returns the flattened at-risk person-years for outcomeType across the population.
+           Delegates to Person.get_at_risk_ages, which returns [] for priorToSim cases and
+           truncates the rest at first in-sim event age.'''
+        ages = map(lambda p: p.get_at_risk_ages(outcomeType), self._people)
+        return list(itertools.chain.from_iterable(ages))
+
+    def get_ages_with_outcome(self, outcomeType=OutcomeType.STROKE):
+        '''Returns a list with the outcome ages of the entire population as the elements'''
+        agesWithOutcome = map(lambda x: x.get_ages_with_outcome(outcomeType=outcomeType), self._people) #nested list of lists with ages
+        agesWithOutcome = list(itertools.chain.from_iterable(agesWithOutcome))            #flattened list of ages
+        return agesWithOutcome
+
+    def get_raw_incidence_by_age(self, outcomeType, groups=False):
+        '''Returns a dictionary with the keys being either age (integer, groups=False)
+        or the age group (string, groups=True) and the values being the counts for that age or age group.
+        Restricted to the at-risk set for first incidence (excludes people with a priorToSim outcome);
+        each person's person-years are truncated at the age of their first in-sim event.'''
+        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType) #first in-sim incidence among at-risk people
+        ages = self.get_at_risk_ages(outcomeType)
+        agesCounter = Counter(ages)
+        outcomeAgesCounter = Counter(outcomeAges)
+        if groups: #if true, then get the counter for age groups, keys are strings now, values are counts for age group category
+            outcomeAgesCounter = self.get_ages_group_counter(outcomeAgesCounter)
+            agesCounter = self.get_ages_group_counter(agesCounter)
+        incidence = dict()
+        for age in sorted(agesCounter.keys()): #sorting here results in a sorted output while printing the incidence rate
+            if (age in outcomeAgesCounter.keys()) & (agesCounter[age]!=0): #second conditional avoids division by 0
+                incidence[age] = outcomeAgesCounter[age]/agesCounter[age]
             else:
-                outcomeIncidenceRate[age] = 0
-        return outcomeIncidenceRate 
+                incidence[age] = 0
+        return incidence 
+
+    def get_prevalence_by_age(self, outcomeType, groups=False):
+        '''Cross-sectional prevalence at the current simulation snapshot.
+           Each alive person contributes once at their current age: to the
+           denominator always, and to the numerator if they currently have
+           the condition (priorToSim outcome, or in-sim outcome at age
+           <= current age). Returns a Counter keyed by age (or age group).'''
+        alivePeople = list(filter(lambda p: p.is_alive, self._people))
+        agesCounter = Counter(map(lambda p: p._current_age, alivePeople))
+        agesWithOutcomeCounter = Counter(map(lambda p: p._current_age,
+            filter(lambda p: p.has_outcome_by_age(outcomeType, p._current_age, inSim=False), alivePeople)))
+        if groups:
+            agesCounter = self.get_ages_group_counter(agesCounter) #converts the Counter of ages to a Counter of age groups
+            agesWithOutcomeCounter = self.get_ages_group_counter(agesWithOutcomeCounter) #same thing
+        prevalence = dict()
+        for key in sorted(agesCounter.keys()): #sorting keys here preserves sorted insertion order for the prevalence as well
+            prevalence[key] = agesWithOutcomeCounter.get(key,0) / agesCounter.get(key,0)
+        return Counter(prevalence)
 
     def get_gender_age_of_all_outcomes_in_sim(self, outcomeType, personFilter=None):
         #get [(gender, age), ...] for all people and their outcomes
@@ -339,14 +393,28 @@ class Population:
                                                         populationPercents[gender.value])])
         return expectedOutcomes
 
-    def get_outcome_risk(self, outcomeType):
-        return sum(list(map(lambda x: x.has_outcome_during_simulation(outcomeType), self._people)))/self._n
+    def get_outcome_cumulative_incidence(self, outcomeType):
+        atRisk = [p for p in self._people if not p.has_outcome_prior_to_simulation(outcomeType)]
+        return sum(p.has_outcome_during_simulation(outcomeType) for p in atRisk)/len(atRisk) if len(atRisk) > 0 else 0
 
-    def get_any_outcome_risk(self, outcomeTypeList):
-        return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=True), self._people)))/self._n
+    def get_any_outcome_cumulative_incidence(self, outcomeTypeList):
+        atRisk = [p for p in self._people if not any(p.has_outcome_prior_to_simulation(ot) for ot in outcomeTypeList)]
+        return sum(p.has_any_outcome(outcomeTypeList, inSim=True) for p in atRisk)/len(atRisk) if len(atRisk) > 0 else 0
+
+    def get_outcome_lifetime_prevalence(self, outcomeType):
+        '''Fraction of the starting cohort that ever had the outcome (priorToSim or in-sim, alive or dead).
+           This is "lifetime prevalence" — distinct from cross-sectional prevalence among the currently alive.'''
+        return sum(list(map(lambda x: x.has_outcome(outcomeType, inSim=False), self._people)))/self._n
+
+    def get_any_outcome_lifetime_prevalence(self, outcomeTypeList):
+        '''Fraction of the starting cohort that ever had any of the listed outcomes (priorToSim or in-sim).'''
+        return sum(list(map(lambda x: x.has_any_outcome(outcomeTypeList, inSim=False), self._people)))/self._n
 
     def get_outcome_count(self, outcomeType):
         return sum(self.has_outcome(outcomeType))
+
+    def get_any_outcome_count(self, outcomeTypeList):
+        return sum(self.has_any_outcome(outcomeTypeList, inSim=True))
 
     def has_outcome(self, outcomeType, inSim=True):
         return list(map(lambda x: x.has_outcome(outcomeType, inSim=inSim), self._people))
@@ -400,23 +468,63 @@ class Population:
         )
         return pd.Series([event[0] for event in events]).mean()
 
+    @staticmethod
+    def get_outcome_flags_per_wave(person):
+        """For each event outcome type, returns a 1/0 list per wave indicating whether
+           the outcome occurred at that wave's age. Excludes priorToSim outcomes.
+           Returns a dictionary keyed by OutcomeType."""
+        nWaves = person._waveCompleted + 1
+        outcomeTypes = [OutcomeType(eot.value) for eot in EventOutcomeType]
+        flags = {ot: [0]*nWaves for ot in outcomeTypes}
+        for ot in outcomeTypes:
+            if ot not in person._outcomes:
+                continue
+            for outcomeAge, outcome in person._outcomes[ot]:
+                if outcome.priorToSim:
+                    continue
+                flags[ot][person.get_wave_for_age(outcomeAge)] = 1
+        return flags
+
+    @staticmethod
+    def get_outcome_history_per_wave(person):
+        """For each event outcome type, returns a 1/0 list per wave indicating whether
+           the person had the outcome in a previous wave (not the current wave).
+           Excludes priorToSim outcomes. Returns a dictionary keyed by OutcomeType."""
+        flags = Population.get_outcome_flags_per_wave(person)
+        history = {}
+        for ot, outcomeFlags in flags.items():
+            cumulative = [0]*len(outcomeFlags)
+            seen = 0
+            for i in range(len(outcomeFlags)):
+                cumulative[i] = seen
+                seen = max(seen, outcomeFlags[i])
+            history[ot] = cumulative
+        return history
+
     def get_all_person_years_as_df(self):
         """This function creates a dataframe where each row is a person-year from the simulation.
-           Thus a single person object will be represented in N rows in this dataframe where N is the 
+           Thus a single person object will be represented in N rows in this dataframe where N is the
            number of years this person object lived in the simulation."""
-    
+
         srfList = list(self._modelRepository["staticRiskFactors"]._repository.keys())
         drfList = list(self._modelRepository["dynamicRiskFactors"]._repository.keys())
         dtList = list(self._modelRepository["defaultTreatments"]._repository.keys())
-        columnNames = ["name"] + srfList + drfList + dtList
-        nestedList = list(map(lambda x: 
+        outcomeNames = [eot.value for eot in EventOutcomeType]
+        outcomeHistoryNames = [eot.value + "History" for eot in EventOutcomeType]
+        columnNames = ["name", "index"] + srfList + drfList + dtList + outcomeNames + outcomeHistoryNames
+        nestedList = list(map(lambda x:
                           list(zip(*[
                               *[[getattr(x, "_"+"name")]*(x._waveCompleted+1)],
+                              *[[getattr(x, "_"+"index")]*(x._waveCompleted+1)],
                               *[[getattr(x, "_"+attr)]*(x._waveCompleted+1) for attr in srfList],
                               *[getattr(x,"_"+attr) for attr in drfList],
-                              *[getattr(x,"_"+attr) for attr in dtList]])), 
+                              *[getattr(x,"_"+attr) for attr in dtList],
+                              *Population.get_outcome_flags_per_wave(x).values(),
+                              *Population.get_outcome_history_per_wave(x).values()])),
                           self._people))
         df = pd.concat([pd.DataFrame(nestedList[i], columns=columnNames) for i in range(len(nestedList))], ignore_index=True)
+        boolCols = df.select_dtypes(include="bool").columns
+        df[boolCols] = df[boolCols].astype(int)
         return df
 
     def get_baseline_attr(self, rf):
@@ -454,6 +562,11 @@ class Population:
         Covariates are include via the personFunctionsList argument, the list must include pure functions that can be applied to a person object.'''
         return list(map(lambda x: x.get_outcome_survival_info(outcomesTypeList=outcomesTypeList, personFunctionsList=personFunctionsList), self._people))
 
+    def get_person_years_at_risk_by_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
+        '''Returns a list with all person years at risk for any of the outcomes in the outcome list by end of wave.
+        This includes all person objects in the population even the ones that died during the simulation.'''
+        return list(map(lambda x: x.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave), self._people))
+
     def get_outcome_incidence_rates_at_end_of_wave(self, outcomesTypeList=[OutcomeType.STROKE], wave=3):
         '''Returns outcome incidence rate per 1000 person-years at the end of the wave argument.
         Need to be careful with wave: wave=0 is the first wave, so set the wave to be number of years you want - 1.'''
@@ -463,12 +576,9 @@ class Population:
             raise RuntimeError(f"Population has not advanced enough to reach end of {wave=}")
         #determine if each person in the population had any of the outcomes
         anyOutcome = self.has_any_outcome_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[False,True,False,False,True,...]
-        #convert to integer eg [0,0,1,1,0,...1,0]
-        anyOutcome = list(map(lambda y: int(y), anyOutcome))
+        anyOutcome = list(map(lambda y: int(y), anyOutcome)) #convert to integer eg [0,0,1,1,0,...1,0]
         #get the number of years each person in the population was at risk
-        waves = self.get_min_wave_of_first_outcomes_or_last_wave(outcomesTypeList) #[5,1,6,8,0,...]
-        personYearsAtRisk = list(map(lambda x: min(x, wave), waves)) #with wave=3 [3,1,3,3,0,..]
-        personYearsAtRisk = list(map(lambda y: y+1, personYearsAtRisk))
+        personYearsAtRisk = self.get_person_years_at_risk_by_end_of_wave(outcomesTypeList=outcomesTypeList, wave=wave) #[3,4,2,5,...]
         popSize = len(anyOutcome) #how many people are part of the SCD and Modality group
         outcomeCounts = sum(anyOutcome) if popSize>0 else 0 #how many people had any of the outcomes
         rate = 1000. * outcomeCounts / sum(personYearsAtRisk)
@@ -508,14 +618,63 @@ class Population:
             rates[i] = 1000. * sum(anyOutcomeForGroup) / sum(personYearsAtRiskForGroup)
         return rates
 
+    def is_in_treatment_strategy(self, tst=TreatmentStrategiesType.BP.value):
+        '''Does not make sense to ask this question a person that is not alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.is_in_treatment_strategy(tst), alivePeople))
+
+    def is_in_any_treatment_strategy(self):
+        '''Does not make sense to ask this question a person that is not alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.is_in_any_treatment_strategy(), alivePeople))        
+
+    def get_treatment_strategies_with_participation(self):
+        '''Returns a list of lists, with each list corresponding to a person alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.get_treatment_strategies_with_participation(), alivePeople))
+
+    def has_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.has_meds_added(tst), alivePeople))
+
+    def has_any_meds_added(self):
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.has_any_meds_added(), alivePeople))         
+
+    def get_treatment_strategies_with_meds_added(self):
+        '''Returns a list of lists, with each list corresponding to a person alive'''
+        alivePeople = filter(lambda y: y.is_alive, self._people)
+        return list(map(lambda x: x.get_treatment_strategies_with_meds_added(), alivePeople))
+
+    def get_population_set_of_treatment_strategies_with_meds_added(self):
+        '''Returns set of treatment strategies where at least 1 person has meds added'''
+        tstFlattened = list(itertools.chain.from_iterable(self.get_treatment_strategies_with_meds_added()))
+        return set(tstFlattened)
+
+    def get_meds_added(self, tst=TreatmentStrategiesType.BP.value):
+        alivePeople = filter(lambda x: x.is_alive, self._people)
+        return list(map(lambda x: x.get_meds_added(tst), alivePeople))
+
     def get_scd_by_modality_group(self):
         return list(map(lambda x: x.get_scd_by_modality_group(), self._people))
 
+    def has_any_meds_added(self):
+        '''It is not reasonable to return True/False, if the person is no longer alive'''
+        return list(map(lambda x: x.has_any_meds_added(), filter(lambda y: y.is_alive, self._people)))
+
+    def get_quintiles(self, variableList):
+        boundaries = np.quantile(variableList, np.linspace(0, 1, 6))
+        quintiles = np.digitize(variableList, boundaries, right=False)
+        quintiles[variableList == boundaries[-1]] = 5
+        return quintiles
+
     def print_baseline_summary(self):
+        print(" "*25, "Printing a summary at baseline...")
         self.print_summary_at_index(0)
 
     def print_lastyear_summary(self):
-        self.print_summary_at_index(-1) 
+        print(" "*25, "Printing a summary at the last year of the simulation...")
+        self.print_summary_at_index(-1)
 
     def print_summary_at_index(self, index):
         """Prints a summary of both static and dynamic risk factors at index (baseline: index=0, last year: index=-1."""
@@ -557,12 +716,14 @@ class Population:
                 dtValueCounts = Counter(dtList)
                 for key in sorted(dtValueCounts.keys()):
                     print(f"{key:>23} {dtValueCounts[key]/len(dtList): 6.2f}")  
-
+        print(Population.get_categorical_variables_key())
 
     def print_baseline_summary_comparison(self, other):
+        print(" "*25, "Printing a summary comparison at baseline...")
         self.print_summary_at_index_comparison(other, 0)
 
     def print_lastyear_summary_comparison(self, other):
+        print(" "*25, "Printing a summary comparison at the last year of the simulation...")
         self.print_summary_at_index_comparison(other, -1)
 
     def print_summary_at_index_comparison(self, other, index):
@@ -632,6 +793,7 @@ class Population:
                 dtValueCountsOther = Counter(dtListOther)
                 for key in sorted(dtValueCounts.keys()):
                     print(f"{key:>23} {dtValueCounts[key]/len(dtList): 6.2f} {dtValueCountsOther[key]/len(dtListOther): 6.2f}")
+        print(Population.get_categorical_variables_key())
 
     def print_lastyear_treatment_strategy_distributions(self):
         '''Prints distributional information about treatment strategy variables, such as bpMedsAdded, statinsAdded,
@@ -641,7 +803,9 @@ class Population:
         #print(" "*25, "-"*53)
         #print(" "*25, "min", " "*4, "0.25", " "*2, "med", " "*3, "0.75", " "*3, "max" , " "*2, "mean", " "*3, "sd")
         #print(" "*25, "-"*53)
-        treatmentStrategies = self._people.iloc[0]._treatmentStrategies.keys()
+
+        treatmentStrategies = self.get_population_set_of_treatment_strategies_with_meds_added()
+
         #for ts in treatmentStrategies:
         #    tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
         #    for tsv in tsVariables:
@@ -653,73 +817,72 @@ class Population:
         print(" "*25, "proportions")
         print(" "*25, "-"*11)
         for ts in treatmentStrategies:
-            tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
-            for tsv in tsVariables:
-                if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]) & (tsv!="status"):
-                    alivePeople = filter(lambda x: x.is_alive, self._people)
-                    tsvList = list(map(lambda x: x._treatmentStrategies[ts][tsv], alivePeople))
-                    print(f"{tsv:>23}")
-                    tsvValueCounts = Counter(tsvList)
-                    for key in sorted(tsvValueCounts.keys()):
-                        print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
+            #this is another approach that accomplishes the same thing, but it also works when the tsv does not fit the pattern "x" + "MedsAdded" 
+            #tsVariables = self._people.iloc[0]._treatmentStrategies[ts].keys()
+            #for tsv in tsVariables:
+                #if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]) & (tsv!="status"):
+            tsv = ts + "MedsAdded"
+            if (tsv in [ctst.value for ctst in CategoricalTreatmentStrategiesType]): 
+                tsvList = self.get_meds_added(tst=ts)
+                print(f"{tsv:>23}")
+                tsvValueCounts = Counter(tsvList)
+                for key in sorted(tsvValueCounts.keys()):
+                    print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
+        #do the statistics for any meds added, I will need to modify this when we start including continuous treatment strategy variables
+        tsv = "any" + "MedsAdded"
+        tsvList = list(map(lambda x: int(x), self.has_any_meds_added()))
+        print(f"{tsv:>23}")
+        tsvValueCounts = Counter(tsvList)
+        for key in sorted(tsvValueCounts.keys()):
+            print(f"{key:>23} {tsvValueCounts[key]/len(tsvList): 6.2f}")
 
     def print_lastyear_treatment_strategy_distributions_by_risk(self, wmhSpecific=True):
         ''''''
-        popAlive = filter(lambda x: x.is_alive, self._people)
-        ts = TreatmentStrategiesType.BP.value
-        tsv = "bpMedsAdded"
-        bpMedsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
-    
-        popAlive = filter(lambda x: x.is_alive, self._people)
-        ts = TreatmentStrategiesType.STATIN.value
-        tsv = "statinsAdded"
-        statinsAddedList = list(map(lambda x: x._treatmentStrategies[ts][tsv], popAlive))
-    
+        treatmentStrategies = self.get_population_set_of_treatment_strategies_with_meds_added()        
         cvModelRepository = CVModelRepository(wmhSpecific=wmhSpecific)
         popAlive = filter(lambda x: x.is_alive, self._people)
         cvRiskList = list(map(lambda x: cvModelRepository.select_outcome_model_for_person(x).get_risk_for_person(x, years=10), popAlive))
-        cvRiskBoundaries = np.quantile(cvRiskList, np.linspace(0, 1, 6))
-        cvRiskQuintiles = np.digitize(cvRiskList, cvRiskBoundaries, right=False)
-        cvRiskQuintiles[cvRiskList == cvRiskBoundaries[-1]] = 5
+        cvRiskQuintiles = self.get_quintiles(cvRiskList)
     
         print(" "*25, "-"*53)
         print(" "*25, "proportions in each quintile")
         print(" "*25, "-"*53)
-     
-        print(" "*25, "bpMedsAdded")
-        print(" "*6, "CV risk quintile      0       1       2       3       4      >4 ")    
-        for ile in sorted(set(cvRiskQuintiles)):  
-            printString = f"{ile:>23} "
-            bmaForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, bpMedsAddedList))))
-            for bmaNumber in range(0,5):
-                #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
-                bmaForIleAndNumber = list(map(lambda x: 1.*(x==bmaNumber), bmaForIle))
-                #get the proportion of the decile people with specified number of meds
-                bmaProportion = np.mean(bmaForIleAndNumber)
-                printString += f"{bmaProportion:> 7.2f} "
-            #same for >4 
-            bmaForIleAndNumber = list(map(lambda x: 1.*(x>4), bmaForIle))
-            bmaProportion = np.mean(bmaForIleAndNumber)
-            printString += f"{bmaProportion:> 7.2f} "
-            print(printString)
-        
-        print(" "*25, "statinsAdded")
-        print(" "*28, "0       1       2 ")    
-        for ile in sorted(set(cvRiskQuintiles)):  
-            printString = f"{ile:>23} "
-            saForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, statinsAddedList))))    
-            for saNumber in range(0,3):
-                #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
-                saForIleAndNumber = list(map(lambda x: 1.*(x==saNumber), saForIle))
-                #get the proportion of the decile people with specified number of meds
-                saProportion = np.mean(saForIleAndNumber)
-                printString += f"{saProportion:> 7.2f} "
-            #same for >4 
-            #spsaForIleAndNumber = list(map(lambda x: 1.*(x>4), spsaForIle))
-            #spsaProportion = np.mean(spsaForIleAndNumber)
-            #printString += f"{spsaProportion:> 7.2f} "
-            print(printString)
 
+        for tst in treatmentStrategies:
+            tsv = tst + "MedsAdded"
+            medsAddedList = self.get_meds_added(tst)
+            print(" "*25, tsv)
+            print(" "*6, "CV risk quintile      0       1       2       3       4      >4 ")
+            for ile in sorted(set(cvRiskQuintiles)):
+                printString = f"{ile:>23} "
+                maForIle = list(map(lambda y: y[1], filter(lambda x: x[0]==ile, zip(cvRiskQuintiles, medsAddedList))))
+                for maNumber in range(0,5):
+                    #get a list of 0 and 1, 1 when person from specified decile has specified number of meds
+                    maForIleAndNumber = list(map(lambda x: 1.*(x==maNumber), maForIle))
+                    #get the proportion of the decile people with specified number of meds
+                    maProportion = np.mean(maForIleAndNumber)
+                    printString += f"{maProportion:> 7.2f} "
+                #same for >4 
+                maForIleAndNumber = list(map(lambda x: 1.*(x>4), maForIle))
+                maProportion = np.mean(maForIleAndNumber)
+                printString += f"{maProportion:> 7.2f} "
+                print(printString)
+    
+    def print_outcome_risk_distributions(self, outcomeTypeList=[OutcomeType.CARDIOVASCULAR]):
+        '''Prints the distribution (min, 0.25, med, 0.75, max, mean, sd) of per-person predicted risk
+        for each outcome in outcomeTypeList, computed over alive people using the population's own
+        outcome model repository. Each outcome model's default time horizon is used.'''
+        outcomeModelRepository = self._modelRepository[PopulationRepositoryType.OUTCOMES.value]
+        alivePeople = list(filter(lambda x: x.is_alive, self._people))
+        print(" "*25, "Printing outcome risk distributions...")
+        print(" "*25, "alive people count= ", f"{Population.get_alive_people_count(self._people):<8}")
+        print(" "*25, "unique alive people count= ", f"{Population.get_unique_alive_people_count(self._people):<8}")
+        print(" "*25, "min", " "*4, "0.25", " "*2, "med", " "*3, "0.75", " "*3, "max" , " "*2, "mean", " "*3, "sd")
+        print(" "*25, "-"*53)
+        for ot in outcomeTypeList:
+            modelRepo = outcomeModelRepository._repository[ot]
+            risks = list(map(lambda x: modelRepo.select_outcome_model_for_person(x).get_risk_for_person(x), alivePeople))
+            print(f"{ot.value:>23} {np.min(risks):> 7.3f} {np.quantile(risks, 0.25):> 7.3f} {np.quantile(risks, 0.5):> 7.3f} {np.quantile(risks, 0.75):> 7.3f} {np.max(risks):> 7.3f} {np.mean(risks):> 7.3f} {np.std(risks):> 7.3f}")
 
     def print_cv_standardized_rates(self):
         outcomes = [OutcomeType.MI, OutcomeType.STROKE, OutcomeType.DEATH,
@@ -735,7 +898,7 @@ class Population:
         for i in range(len(outcomes)):
             print(f"{outcomes[i].value:>30} {standardizedRates[i]:> 10.1f} {standardizedRatesBlack[i]:> 10.1f} {standardizedRatesWhite[i]:> 10.1f}")
 
-    def print_outcome_incidence(self, path=None, outcomeType=OutcomeType.DEMENTIA):
+    def plot_outcome_incidence(self, path=None, outcomeType=OutcomeType.DEMENTIA):
         '''Produces the outcome incidence rate by age.'''
         incidentRate = self.get_raw_incidence_by_age(outcomeType)
         plt.scatter(incidentRate.keys(), incidentRate.values())
@@ -762,6 +925,56 @@ class Population:
             plt.clf()
             print("exported results as PNG figures")
  
+    def print_outcome_incidence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        '''Prints first-incidence rates per age (or age group, if groups=True) plus two summary rows:
+           rate (>=65)    pooled person-year rate over ages 65+
+           rate (overall) pooled person-year rate over all ages
+           All rows are restricted to the at-risk set (people without a priorToSim outcome) and
+           use person-years truncated at each person's first in-sim event.'''
+        incidentRate = self.get_raw_incidence_by_age(outcomeType, groups=groups)
+        outcomeAges = self.get_at_risk_age_at_first_outcome(outcomeType)
+        personYears = self.get_at_risk_ages(outcomeType)
+        scope65plus = AgeScope(lo=65)
+        outcomeAges65plus = [a for a in outcomeAges if scope65plus.contains(a)]
+        personYears65plus = [a for a in personYears if scope65plus.contains(a)]
+        rate65plus = len(outcomeAges65plus) / len(personYears65plus) if len(personYears65plus) > 0 else 0
+        rateOverall = len(outcomeAges) / len(personYears) if len(personYears) > 0 else 0
+        print(" "*25, "-"*53)
+        print(" "*25, f"{outcomeType.value} incidence rate (first incidence only)")
+        print(" "*25, "-"*53)
+        print(" "*19, "age", "  rate")
+        for group, rate in incidentRate.items():
+            print(f"{group:>23} {rate:7.4f}")
+        print(f"{'rate (>=65)':>23} {rate65plus:7.4f}")
+        print(f"{'rate (overall)':>23} {rateOverall:7.4f}")
+  
+    def print_outcome_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        '''Prints cross-sectional prevalence per age (or age group, if groups=True) plus two summary rows:
+           pooled (>=65)    pooled cross-sectional prevalence among alive people aged 65+
+           pooled (overall) pooled cross-sectional prevalence among all alive people
+           Numerators include both priorToSim and in-sim outcomes (anyone currently with the outcome);
+           denominators count only currently alive people.'''
+        prevalence = self.get_prevalence_by_age(outcomeType, groups=groups)
+        alive = list(filter(lambda p: p.is_alive, self._people))
+        scope65plus = AgeScope(lo=65)
+        alive65plus = [p for p in alive if scope65plus.contains(p._current_age)]
+        hasOutcome = [p for p in alive if p.has_outcome_by_age(outcomeType, p._current_age, inSim=False)]
+        hasOutcome65plus = [p for p in hasOutcome if scope65plus.contains(p._current_age)]
+        pooled65plus = len(hasOutcome65plus) / len(alive65plus) if len(alive65plus) > 0 else 0
+        pooledOverall = len(hasOutcome) / len(alive) if len(alive) > 0 else 0
+        print(" "*25, "-"*53)
+        print(" "*25, f"{outcomeType.value} prevalence rate")
+        print(" "*25, "-"*53)
+        print(" "*19, "age", "  rate")
+        for group, rate in prevalence.items():
+            print(f"{group:>23} {rate:7.4f}")
+        print(f"{'pooled (>=65)':>23} {pooled65plus:7.4f}")
+        print(f"{'pooled (overall)':>23} {pooledOverall:7.4f}")
+
+    def print_outcome_incidence_prevalence(self, outcomeType=OutcomeType.DEMENTIA, groups=True):
+        self.print_outcome_incidence(outcomeType=outcomeType, groups=groups)
+        self.print_outcome_prevalence(outcomeType=outcomeType, groups=groups)
+
     def print_vascular_rfs_over_time(self, other, path=None):
         '''This function takes a population and analyzes the distribution of its risk factors.
            These distributions are then compared to the same distributions from other. 
@@ -863,7 +1076,38 @@ class Population:
         print(" "*25, "-"*16)
         print(" "*18,f"TRUE {sum(sbiList)/self._n:>6.2f}")
 
+    @staticmethod
+    def get_categorical_variables_key():
+        '''Returns a string that maps the integer categories to their string, and easily understandable by humans, representations'''
 
+        alcKey = " "*9 +"alcoholPerWeek  "
+        for alc in AlcoholCategory:
+            alcKey += f"{alc.value}: {alc.name}, "
+        alcKey = alcKey[:-2]
+
+        raceKey = "\n" + " "*10 + "raceEthnicity  "
+        for race in RaceEthnicity:
+            raceKey += f"{race.value}: {race.name}, "
+        raceKey = raceKey[:-2]
+
+        edKey = "\n" + " "*14 + "education  "
+        for ed in Education:
+            edKey += f"{ed.value}: {ed.name}, "
+        edKey = edKey[:-2]
+
+        genderKey = "\n" + " "*17 + "gender  "
+        for gender in NHANESGender:
+            genderKey += f"{gender.value}: {gender.name}, "
+        genderKey = genderKey[:-2]
+
+        ssKey = "\n" + " "*10 + "smokingStatus  "
+        for ss in SmokingStatus:
+            ssKey += f"{ss.value}: {ss.name}, "
+        ssKey = ssKey[:-2]
+
+        booleanKey = "\n" + " "*6 + "boolean variables  0: False, 1: True"
+        categoricalKey =  " "*25 + "Categorical Variables Key\n" + " "*25 + "-"*53 + "\n" + alcKey + raceKey + edKey + genderKey + ssKey + booleanKey
+        return categoricalKey
 
 
 

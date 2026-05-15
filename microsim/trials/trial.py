@@ -1,11 +1,12 @@
 from microsim.population_factory import PopulationFactory
 from microsim.trials.trial_type import TrialType
 from microsim.population import Population
-from microsim.treatment import TreatmentStrategiesType, TreatmentStrategyStatus
+from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
 from microsim.trials.trial_outcome_assessor import AnalysisType
 
 import pandas as pd
 import random
+import sys
 
 class Trial:
     '''This class stores the trial setup, through the TrialDescription instance, trial populations, and trial results.
@@ -27,14 +28,16 @@ class Trial:
         self.completed = False
         self.analyzed = False
         self.results = dict()
+        self.pythonVersion = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     
     def get_trial_populations(self):
         '''A Population needs two things: People, PopulationModelRepository.
         The People will be obtained according to the TrialType, the PopulationModelRepository is determined 
         based on the PopulationType (eg for NHANES there is only one self-consistent PopulationModelRepository).'''
         treatedPeople, controlPeople = self.get_trial_people()
-        return (Population(treatedPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType)),
-                Population(controlPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType)))
+        modelRepoArgs = self.trialDescription.modelRepoArgs if hasattr(self.trialDescription, 'modelRepoArgs') else {}
+        return (Population(treatedPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType, **modelRepoArgs)),
+                Population(controlPeople, PopulationFactory.get_population_model_repo(self.trialDescription.popType, **modelRepoArgs)))
             
     def get_trial_people(self):
         '''Returns treatedPeople and controlPeople based on TrialType.
@@ -58,15 +61,15 @@ class Trial:
     def get_trial_people_non_randomized(self):
         '''Returns People without performing any kind of process on them.
         Sets a unique index on all Person objects of the trial.'''
-        treatedPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
-        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
+        treatedPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
+        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
         PopulationFactory.set_index_in_people(controlPeople, start=treatedPeople.shape[0])
         return treatedPeople, controlPeople
     
     def get_trial_people_identical(self):
         '''treated and control people are identical.
         Sets a unique index on all Person objects of the trial.'''
-        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.popArgs)
+        controlPeople = PopulationFactory.get_people(self.trialDescription.popType, **self.trialDescription.peopleArgs)
         treatedPeople = Population.get_people_copy(controlPeople)
         PopulationFactory.set_index_in_people(controlPeople, start=treatedPeople.shape[0])
         return treatedPeople, controlPeople
@@ -106,7 +109,7 @@ class Trial:
             controlPeople = pd.concat([controlPeople, controlPeopleBlock])
         return treatedPeople, controlPeople
         
-    def run(self):
+    def run(self, notify=True):
         if self.completed:
             print("Cannot run a trial that has already been completed.")
         else:
@@ -126,7 +129,8 @@ class Trial:
                                     nWorkers=self.trialDescription.nWorkers)
 
             self.completed = True
-            print("Trial is completed.")
+            if notify:
+                print("Trial is completed.")
             
     def analyze(self, trialOutcomeAssessor):
         '''Trial outcomes need to be defined in an instance of the TrialOutcomeAssessor class and provided in this function
@@ -143,8 +147,8 @@ class Trial:
             else:
                 self.results[assessmentAnalysis] = {assessmentName: assessmentResults}
     
-    def run_analyze(self, trialOutcomeAssessor):
-        self.run()
+    def run_analyze(self, trialOutcomeAssessor, notify=True):
+        self.run(notify=notify)
         self.analyze(trialOutcomeAssessor)
            
     def print_covariate_distributions(self):
@@ -193,30 +197,49 @@ class Trial:
 
     def print_treatment_strategy_variables_distributions_by_risk(self):
         '''Prints distribution information about each treatment strategy variable for each CV risk quintile.'''
-        wmhSpecific = self.trialDescription._wmhSpecific if "wmhSpecific" in self.trialDescription.popArgs.keys() else True
+        wmhSpecific = self.trialDescription.wmhSpecific if hasattr(self.trialDescription, 'wmhSpecific') else True
         self.treatedPop.print_lastyear_treatment_strategy_distributions_by_risk(wmhSpecific=wmhSpecific) 
 
     def __string__(self):
         rep = self.trialDescription.__str__()
         rep += f"\nTrial\n"
         rep += f"\tTrial completed: {self.completed}\n"
+        rep += f"\tTrial python version: {self.pythonVersion}\n"
         if self.analyzed:
             rep += f"Trial results:\n"
             for analysisType in AnalysisType:
                 rep += "\t" + "Analysis: " + f"{analysisType.value}\n"
                 if analysisType == AnalysisType.RELATIVE_RISK:
-                    rep += "\t" +" "*25 + " "*10 + "relRisk" + " "*4 + "treatedRisk" + " "*4 + "controlRisk" + " "*4 + "|diff|*1000\n"
+                    rep += " "*25 + "  "
+                    rep += " |" + "-"*5 + "relative" + "-"*5 + "|"
+                    rep += " |" + "-"*12 + "treated" + "-"*13 + "|"
+                    rep += " |" + "-"*12 + "control" + "-"*13 + "|"
+                    rep += " |" + "-"*4 + "diff*100." + "-"*5 + "|" +  "  diff*100/anyMedsAdded\n"
+                    rep += " "*25 + "  "
+                    rep += " |mle-|" + " |" + "-"*3 + "score" + "-"*3 + "|"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |" + "-"*3 + "wilson" + "-"*2 + "|"
+                    rep += " |" + "-"*8 + "mle" + "-"*7 + "|" + " |mle-|\n"
+                    rep += " "*25 + "  " + "   risk" + "  ciLow" + "  ciUpp" + "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp"
+                    rep += "   risk" + "  ciLow" + "  ciUpp" + "  ciLow" + "  ciUpp"
+                    rep += "   risk" + "  ciLow" + "  ciUpp" + "   risk\n"
+                elif analysisType == AnalysisType.COX:
+                    rep += " "*25 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue\n"
+                elif analysisType == AnalysisType.INCIDENCE_RATE:
+                    rep += " "*25 + "  " + "tRate/1kPY" + " " + "cRate/1kPY\n"
                 else:
-                    rep += "\t" +" "*25 + " "*16 + "Z" + " "*6 + "Intercept" + " "*11 + "Z SE" + " "*9 + "pValue\n"
+                    rep += " "*25 + "  " + " "*6 + "Z" + " "*3 + "Z SE" + " "*1 + "pValue" + " "*1 + "Inter.\n"
+                if analysisType.value not in self.results:
+                    continue
                 for key in self.results[analysisType.value].keys():
-                    rep += f"\t{key:>25}: "
+                    rep += f"{key:>25}: "
                     for result in self.results[analysisType.value][key]:
                         if (result is not None) & (result is not float('inf')):
-                            rep += f"{result:>15.2f}"
+                            rep += f"{result:>7.3f}"
                         elif result== float('inf'):
-                            rep += f"{'inf':>15}"
+                            rep += f"{'inf':>7}"
                         else:
-                            rep += " "*15
+                            rep += " "*7
                     rep += "\n"
         return rep
 

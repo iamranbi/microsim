@@ -1,18 +1,19 @@
 from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
-from microsim.gender import NHANESGender
-from microsim.race_ethnicity import RaceEthnicity
-from microsim.smoking_status import SmokingStatus
+from microsim.risk_factors.gender import NHANESGender
+from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.regression_model import RegressionModel
-from microsim.education import Education
-from microsim.alcohol_category import AlcoholCategory
+from microsim.risk_factors.education import Education
+from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
 from microsim.population_factory import PopulationFactory
-from microsim.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.treatment import DefaultTreatmentsType
+from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
+from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.person import Person
 from microsim.person_factory import PersonFactory
+from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 
 import unittest
 import pandas as pd
@@ -54,7 +55,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0])
-        self.person = PersonFactory.get_nhanes_person(x.iloc[0])
+        self.person = PersonFactory.get_nhanes_person(x.iloc[0], InitializationModelRepository())
         self.person._afib = [False]
 
         xList = [pd.DataFrame({DynamicRiskFactorsType.AGE.value: 80,
@@ -77,7 +78,8 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
                                DefaultTreatmentsType.STATIN.value: 0,
                                DynamicRiskFactorsType.CREATININE.value: 0,
                                "name": "0"}, index=[0]) for bpinstance in sbp]
-        self.people = list(map(lambda x: PersonFactory.get_nhanes_person(x.iloc[0]), xList))
+        imr = InitializationModelRepository()
+        self.people = list(map(lambda x: PersonFactory.get_nhanes_person(x.iloc[0], imr), xList))
         
         for person in self.people:
             person._afib = [False]
