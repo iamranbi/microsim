@@ -367,7 +367,7 @@ class PopulationFactory:
                 f"{outcomeType} prevalence model ignores riskScaling "
                 f"(see outcome_prevalence_model_repository.py docstring). Cannot calibrate."
             )
-        defaultOpmr = OutcomePrevalenceModelRepository()
+        defaultOpmr = OutcomePrevalenceModelRepository(useDefaults=False)
         if not defaultOpmr.has_prevalence_model(outcomeType):
             raise ValueError(
                 f"{outcomeType} has no prevalence model registered; nothing to calibrate."
@@ -453,7 +453,7 @@ class PopulationFactory:
             raise ValueError(
                 f"{scaleOutcomeType} prevalence model ignores riskScaling; cannot scale."
             )
-        defaultOpmr = OutcomePrevalenceModelRepository()
+        defaultOpmr = OutcomePrevalenceModelRepository(useDefaults=False)
         if not defaultOpmr.has_prevalence_model(scaleOutcomeType):
             raise ValueError(
                 f"{scaleOutcomeType} has no prevalence model registered; nothing to scale."
@@ -492,7 +492,7 @@ class PopulationFactory:
 
         def empiricalGap(logS):
             scaling = {**baseScaling, scaleOutcomeType: math.exp(logS)}
-            opmr = OutcomePrevalenceModelRepository(riskScaling=scaling)
+            opmr = OutcomePrevalenceModelRepository(riskScaling=scaling, useDefaults=False)
             hits = 0
             for person, state in zip(scopePeople, rngStates):
                 person._rng.bit_generator.state = copy.deepcopy(state)

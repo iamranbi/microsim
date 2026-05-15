@@ -11,6 +11,23 @@ from microsim.outcomes.epilepsy_model_repository import EpilepsyPrevalenceModelR
 from microsim.outcomes.cognition_model_repository import CognitionPrevalenceModelRepository
 
 
+# Calibrated default priorToSim risk scaling per outcome. Each value is interpreted by the
+# corresponding prevalence model: expit-based logistic models treat it as an odds-ratio shift
+# (lp + log s); the epilepsy rate model treats it as a direct multiplier. Outcomes whose
+# prevalence model ignores riskScaling (MI partition, COGNITION) must not appear here.
+#
+# To bake in a calibrated value: run PopulationFactory.calibrate_prevalence (analytic) or
+# .calibrate_prevalence_empirical (cross-outcome), then add an entry here. For each entry
+# record in a trailing comment: target prevalence, AgeScope, NHANES year and people args
+# used, calibration helper, and date — these define the configuration under which the value
+# is exact; off-configuration use is approximate.
+#
+# Example (do not uncomment unless the value is real):
+#   OutcomeType.CARDIOVASCULAR: 1.23,  # target=0.18, AgeScope(65, None), NHANES 1999,
+#                                      # calibrate_prevalence, 2026-05-15
+DEFAULT_PREVALENCE_RISK_SCALING: dict[OutcomeType, float] = {}
+
+
 class OutcomePrevalenceModelRepository:
     """Holds the priorToSim (prevalence) rules for outcomes.
        Mirror image of OutcomeModelRepository: every OutcomeType is registered as a key, but
@@ -20,17 +37,27 @@ class OutcomePrevalenceModelRepository:
        prevalence model. For expit-based logistic models the scalar is applied as an odds
        shift (lp + log(scaling)); for the epilepsy rate model it is a direct rate multiplier.
        Outcomes without a probabilistic prevalence model (MI partition, cognition GCP) ignore
-       riskScaling regardless of what is passed."""
+       riskScaling regardless of what is passed.
 
-    def __init__(self, riskScaling=None):
+       useDefaults: when True (default), entries from DEFAULT_PREVALENCE_RISK_SCALING are
+       merged with `riskScaling`; per-outcome values in `riskScaling` override defaults.
+       Pass useDefaults=False to bypass the module-level defaults entirely — used by the
+       calibrators to measure against a pristine baseline, and by sensitivity analyses
+       that want to recover pre-calibration behavior."""
+
+    def __init__(self, riskScaling=None, useDefaults=True):
         if riskScaling is None:
             riskScaling = {}
-        cvScaling = riskScaling.get(OutcomeType.CARDIOVASCULAR, 1.0)
-        strokeScaling = riskScaling.get(OutcomeType.STROKE, 1.0)
-        dementiaScaling = riskScaling.get(OutcomeType.DEMENTIA, 1.0)
-        epilepsyScaling = riskScaling.get(OutcomeType.EPILEPSY, 1.0)
-        diabetesScaling = riskScaling.get(OutcomeType.DIABETES, 1.0)
-        ckdScaling = riskScaling.get(OutcomeType.CHRONIC_KIDNEY_DISEASE, 1.0)
+        if useDefaults:
+            effective = {**DEFAULT_PREVALENCE_RISK_SCALING, **riskScaling}
+        else:
+            effective = dict(riskScaling)
+        cvScaling = effective.get(OutcomeType.CARDIOVASCULAR, 1.0)
+        strokeScaling = effective.get(OutcomeType.STROKE, 1.0)
+        dementiaScaling = effective.get(OutcomeType.DEMENTIA, 1.0)
+        epilepsyScaling = effective.get(OutcomeType.EPILEPSY, 1.0)
+        diabetesScaling = effective.get(OutcomeType.DIABETES, 1.0)
+        ckdScaling = effective.get(OutcomeType.CHRONIC_KIDNEY_DISEASE, 1.0)
         self._repository = {
             OutcomeType.WMH:                      None,
             OutcomeType.COGNITION:                CognitionPrevalenceModelRepository(),
