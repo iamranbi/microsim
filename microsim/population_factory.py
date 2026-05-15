@@ -4,7 +4,6 @@ import numpy as np
 from itertools import product
 from scipy.stats import multivariate_normal
 from scipy.optimize import brentq
-from scipy.special import expit
 from enum import Enum
 import math
 
@@ -332,105 +331,32 @@ class PopulationFactory:
         return Population(people, popModelRepository)
 
     @staticmethod
-    def calibrate_prevalence(outcomeType, target, scope, popType, peopleArgs):
-        '''Find the OutcomePrevalenceModelRepository riskScaling that makes the baseline
-           cross-sectional priorToSim prevalence of `outcomeType` in `scope` equal `target`,
-           given a population constructed from `peopleArgs`.
-
-           outcomeType: an OutcomeType whose prevalence model honors riskScaling. MI and
-                        COGNITION do not honor it and are refused.
-           target:      desired prevalence in (0, 1) for expit-based models, or a non-negative
-                        rate for the epilepsy rate model.
-           scope:       an AgeScope instance restricting which persons contribute
-                        to the calibration, e.g. AgeScope(65, None) for age>=65,
-                        AgeScope(70, 74), or AgeScope() for all ages.
-           popType:     PopulationType.NHANES is supported. Kaiser inlines its prevalence calls
-                        in person_factory.get_kaiser_person and does not honor riskScaling; refused.
-           peopleArgs:  dict forwarded to get_nhanes_people(**peopleArgs). Same shape as
-                        NhanesTrialDescription.peopleArgs. An outcomePrevalenceModelRepository
-                        key, if present, is dropped (the calibrator manages seeding itself).
-
-           Returns: float scaling to feed into prevalenceRiskScaling={outcomeType: scaling}.
-
-           Analytic: for expit-based models, brentq on the mean of expit(lp_i + log s) over
-           the scope. For epilepsy (rate model), closed form s = target / mean_i(lp_i / 1000).'''
-
-        if popType is not PopulationType.NHANES:
-            raise NotImplementedError(
-                f"calibrate_prevalence only supports PopulationType.NHANES; got {popType}. "
-                f"Kaiser inlines prevalence in person_factory.get_kaiser_person and does not "
-                f"honor riskScaling."
-            )
-
-        if outcomeType in {OutcomeType.MI, OutcomeType.COGNITION}:
-            raise ValueError(
-                f"{outcomeType} prevalence model ignores riskScaling "
-                f"(see outcome_prevalence_model_repository.py docstring). Cannot calibrate."
-            )
-        defaultOpmr = OutcomePrevalenceModelRepository(useDefaults=False)
-        if not defaultOpmr.has_prevalence_model(outcomeType):
-            raise ValueError(
-                f"{outcomeType} has no prevalence model registered; nothing to calibrate."
-            )
-
-        peopleArgs = {k: v for k, v in peopleArgs.items() if k != "outcomePrevalenceModelRepository"}
-
-        unseededPeople = PopulationFactory.get_nhanes_people(
-            **peopleArgs, outcomePrevalenceModelRepository=None
-        )
-
-        model = defaultOpmr._repository[outcomeType]._model
-        scopePeople = [p for p in unseededPeople if scope.contains(p._current_age)]
-        if len(scopePeople) == 0:
-            raise ValueError(
-                f"scope {scope} matched zero constructed persons; cannot calibrate against an "
-                f"empty subset (check peopleArgs personFilters and n)."
-            )
-        lps = np.array([model.get_linear_predictor_for_person(p) for p in scopePeople])
-
-        if outcomeType is OutcomeType.EPILEPSY:
-            baseline = float(np.mean(lps / 1000.))
-            if baseline <= 0:
-                raise ValueError(
-                    f"Mean epilepsy baseline rate in scope is non-positive ({baseline}); "
-                    f"cannot calibrate."
-                )
-            scaling = target / baseline
-        else:
-            if not (0. < target < 1.):
-                raise ValueError(
-                    f"target must be in (0, 1) for expit-based prevalence; got {target}."
-                )
-
-            def gap(logS):
-                return float(np.mean(expit(lps + logS))) - target
-
-            lo, hi = -15.0, 15.0
-            if gap(lo) > 0 or gap(hi) < 0:
-                raise ValueError(
-                    f"target {target} is not achievable for outcome {outcomeType} in scope "
-                    f"{scope}: bracket [exp({lo}), exp({hi})] does not straddle the root."
-                )
-            logScaling = brentq(gap, lo, hi, xtol=1e-8)
-            scaling = math.exp(logScaling)
-
-        print(f"calibrate_prevalence: outcome={outcomeType.value} scope={scope.label} "
-              f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
-        return scaling
-
-    @staticmethod
-    def calibrate_prevalence_empirical(scaleOutcomeType, targetOutcomeType, target, scope,
-                                       popType, peopleArgs, baselineRiskScaling=None):
+    def calibrate_prevalence(scaleOutcomeType, targetOutcomeType, target, scope,
+                             popType, peopleArgs, baselineRiskScaling=None):
         '''Empirically find the OutcomePrevalenceModelRepository riskScaling on
            `scaleOutcomeType` such that the realized priorToSim prevalence of
            `targetOutcomeType` in `scope` equals `target`.
 
-           Use this when the target outcome's prevalence depends on whether some other
-           outcome was seeded first. The canonical case is stroke/MI, whose prevalence
-           models short-circuit unless CV was seeded as priorToSim. When
-           scaleOutcomeType == targetOutcomeType the analytic calibrate_prevalence is
-           faster and exact; this function is the cross-outcome generalization.
+           When `scaleOutcomeType == targetOutcomeType` this calibrates a single outcome
+           directly. When they differ, the scale outcome must precede the target in
+           OutcomeType seeding order so its priorToSim status can cascade into the
+           target's linear predictor — the canonical case is stroke/MI, whose prevalence
+           models short-circuit unless CV was seeded as priorToSim.
 
+           scaleOutcomeType: outcome whose prevalence riskScaling is the unknown. Its
+                             prevalence model must honor riskScaling; MI and COGNITION
+                             do not and are refused.
+           targetOutcomeType: outcome whose realized priorToSim prevalence the search
+                              drives to `target`. May equal scaleOutcomeType.
+           target:           desired realized prevalence in (0, 1).
+           scope:            AgeScope restricting which persons contribute to the
+                             measured prevalence, e.g. AgeScope(65, None) for age>=65.
+           popType:          PopulationType.NHANES is supported. Kaiser inlines its
+                             prevalence calls in person_factory.get_kaiser_person and
+                             does not honor riskScaling; refused.
+           peopleArgs:       dict forwarded to get_nhanes_people(**peopleArgs). An
+                             outcomePrevalenceModelRepository key, if present, is dropped
+                             (the calibrator manages seeding itself).
            baselineRiskScaling: optional dict[OutcomeType, float] applied to other
                                 outcomes for the duration of the calibration. Lets
                                 callers chain calibrations (e.g., pin epilepsy at a
@@ -446,7 +372,7 @@ class PopulationFactory:
 
         if popType is not PopulationType.NHANES:
             raise NotImplementedError(
-                f"calibrate_prevalence_empirical only supports PopulationType.NHANES; "
+                f"calibrate_prevalence only supports PopulationType.NHANES; "
                 f"got {popType}."
             )
         if scaleOutcomeType in {OutcomeType.MI, OutcomeType.COGNITION}:
@@ -534,7 +460,7 @@ class PopulationFactory:
             logScaling = brentq(empiricalGap, lo, hi, xtol=1e-4)
             scaling = math.exp(logScaling)
 
-        print(f"calibrate_prevalence_empirical: scale={scaleOutcomeType.value} "
+        print(f"calibrate_prevalence: scale={scaleOutcomeType.value} "
               f"target_outcome={targetOutcomeType.value} scope={scope.label} "
               f"target={target:.4f} scaling={scaling:.4f} scopeN={len(scopePeople)}")
         return scaling

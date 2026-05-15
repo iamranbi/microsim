@@ -16,21 +16,20 @@ from microsim.outcomes.cognition_model_repository import CognitionPrevalenceMode
 # (lp + log s); the epilepsy rate model treats it as a direct multiplier. Outcomes whose
 # prevalence model ignores riskScaling (MI partition, COGNITION) must not appear here.
 #
-# To bake in a calibrated value: run PopulationFactory.calibrate_prevalence (analytic) or
-# .calibrate_prevalence_empirical (cross-outcome), then add an entry here. For each entry
-# record in a trailing comment: target prevalence, AgeScope, NHANES year and people args
-# used, calibration helper, and date — these define the configuration under which the value
-# is exact; off-configuration use is approximate.
+# To bake in a calibrated value: run PopulationFactory.calibrate_prevalence, then add an
+# entry here. For each entry record in a trailing comment: target prevalence, scale and
+# target OutcomeTypes, AgeScope, NHANES year and people args used, and date — these define
+# the configuration under which the value is exact; off-configuration use is approximate.
 #
 # Example (do not uncomment unless the value is real):
-#   OutcomeType.CARDIOVASCULAR: 1.23,  # target=0.18, AgeScope(65, None), NHANES 1999,
-#                                      # calibrate_prevalence, 2026-05-15
+#   OutcomeType.CARDIOVASCULAR: 1.23,  # scale=CV, target_outcome=CV, target=0.18,
+#                                      # AgeScope(65, None), NHANES 1999, 2026-05-15
 DEFAULT_PREVALENCE_RISK_SCALING: dict[OutcomeType, float] = {
       # calibrate_prevalence: scale=cv target_outcome=stroke scope=age_group_80-84 target=0.0780 (GBD data)
-      OutcomeType.CARDIOVASCULAR: 71.9, 
+      OutcomeType.CARDIOVASCULAR: 71.9,
       # calibrate_prevalence: scale=epilepsy target_outcome=epilepsy scope=pooled_65_plus target=0.0110 scaling=1.8845, CMS-based data for >=65
       # and keep CV risk to default above
-      OutcomeType.EPILEPSY: 1.88 
+      OutcomeType.EPILEPSY: 1.88
 }
 
 
