@@ -7,6 +7,7 @@ from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.a1c import convert_fasting_glucose_to_a1c
 from microsim.outcomes.cognition_model import GCPModel
 from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
@@ -38,7 +39,7 @@ class TestGCPModel(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_WHITE.value,
                                DynamicRiskFactorsType.SBP.value: 120 + 0.45 * 10,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100 - 1.1 * 10),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100 - 1.1 * 10),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 127 - 3.64 * 10,
                                DynamicRiskFactorsType.BMI.value: 26.6 + 15.30517532,
@@ -61,7 +62,7 @@ class TestGCPModel(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_WHITE.value,
                                DynamicRiskFactorsType.SBP.value: 120 + 0.3 * 10,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100 + 0.732746529 * 10),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100 + 0.732746529 * 10),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 127 + 1.18 * 10,
                                DynamicRiskFactorsType.BMI.value: 26.6 + 0.419305619,
@@ -84,7 +85,7 @@ class TestGCPModel(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_BLACK.value,
                                DynamicRiskFactorsType.SBP.value: 120 + 2.3 * 10,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100 + 0.8893 * 10),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100 + 0.8893 * 10),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 127 + 4.7769 * 10,
                                DynamicRiskFactorsType.BMI.value: 26.6 + 2.717159247,

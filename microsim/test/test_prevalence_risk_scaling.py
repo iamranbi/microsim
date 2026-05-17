@@ -107,14 +107,22 @@ class TestOutcomePrevalenceModelRepositoryDispatch(unittest.TestCase):
             inner = opmr._repository[outcomeType]._model
             self.assertEqual(expected, inner._riskScaling, msg=f"{outcomeType}")
 
-    def test_unspecified_outcomes_default_to_one(self):
-        # Only set CV scaling; the others should stay at the 1.0 default.
+    def test_caller_overrides_default_others_inherit_default(self):
+        # Set CV explicitly; verify CV uses the caller's value (overriding any module-level
+        # default) while other outcomes inherit whatever DEFAULT_PREVALENCE_RISK_SCALING
+        # holds (falling back to 1.0 when not registered).
         opmr = OutcomePrevalenceModelRepository(
             riskScaling={OutcomeType.CARDIOVASCULAR: 4.0}
         )
         self.assertEqual(4.0, opmr._repository[OutcomeType.CARDIOVASCULAR]._model._riskScaling)
-        self.assertEqual(1.0, opmr._repository[OutcomeType.DEMENTIA]._model._riskScaling)
-        self.assertEqual(1.0, opmr._repository[OutcomeType.EPILEPSY]._model._riskScaling)
+        self.assertEqual(
+            DEFAULT_PREVALENCE_RISK_SCALING.get(OutcomeType.DEMENTIA, 1.0),
+            opmr._repository[OutcomeType.DEMENTIA]._model._riskScaling,
+        )
+        self.assertEqual(
+            DEFAULT_PREVALENCE_RISK_SCALING.get(OutcomeType.EPILEPSY, 1.0),
+            opmr._repository[OutcomeType.EPILEPSY]._model._riskScaling,
+        )
 
 
 class TestNhanesTrialDescriptionForwardsPrevalenceRiskScaling(unittest.TestCase):
