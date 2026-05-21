@@ -7,13 +7,10 @@ from microsim.trials.trial_description import NhanesTrialDescription, KaiserTria
 from microsim.trials.trial import Trial
 from microsim.trials.trial_type import TrialType
 from microsim.person.person_filter_factory import PersonFilterFactory
-from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 
 def _adults_filter():
-    pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
-    pf.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value] >= 18)
-    return pf
+    return PersonFilterFactory.get_person_filter_from_list(["adult"])
 
 
 class TestNhanesTrialDescriptionPrevalence(unittest.TestCase):

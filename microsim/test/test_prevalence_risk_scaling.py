@@ -14,13 +14,10 @@ from microsim.outcomes.outcome_prevalence_model_repository import (
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.trials.trial_description import NhanesTrialDescription
 from microsim.person.person_filter_factory import PersonFilterFactory
-from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 
 def _adults_filter():
-    pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
-    pf.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value] >= 18)
-    return pf
+    return PersonFilterFactory.get_person_filter_from_list(["adult"])
 
 
 class _StubPrevalenceModel(OutcomePrevalenceBase):
