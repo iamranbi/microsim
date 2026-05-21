@@ -7,6 +7,7 @@ from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
+from microsim.risk_factors.a1c import convert_fasting_glucose_to_a1c
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.population_factory import PopulationFactory
 from microsim.person_factory import PersonFactory
@@ -21,7 +22,7 @@ class TestCKDEquation(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_BLACK.value,
                                DynamicRiskFactorsType.SBP.value: 120,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 150,
                                DynamicRiskFactorsType.BMI.value: 26.6,
@@ -45,7 +46,7 @@ class TestCKDEquation(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_BLACK.value,
                                DynamicRiskFactorsType.SBP.value: 120,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 150,
                                DynamicRiskFactorsType.BMI.value: 26.6,
@@ -69,7 +70,7 @@ class TestCKDEquation(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_WHITE.value,
                                DynamicRiskFactorsType.SBP.value: 120,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 150,
                                DynamicRiskFactorsType.BMI.value: 26.6,
@@ -93,7 +94,7 @@ class TestCKDEquation(unittest.TestCase):
                                StaticRiskFactorsType.RACE_ETHNICITY.value:RaceEthnicity.NON_HISPANIC_WHITE.value,
                                DynamicRiskFactorsType.SBP.value: 120,
                                DynamicRiskFactorsType.DBP.value: 80,
-                               DynamicRiskFactorsType.A1C.value: Person.convert_fasting_glucose_to_a1c(100),
+                               DynamicRiskFactorsType.A1C.value: convert_fasting_glucose_to_a1c(100),
                                DynamicRiskFactorsType.HDL.value: 50,
                                DynamicRiskFactorsType.TOT_CHOL.value: 150,
                                DynamicRiskFactorsType.BMI.value: 26.6,

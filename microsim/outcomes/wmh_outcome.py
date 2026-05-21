@@ -1,5 +1,13 @@
 from microsim.outcomes.outcome import Outcome, OutcomeType
 
+#Map to be used for the classification of person objects regarding the WMH outcome.
+#This serves as the categorical variable to be used later on with regression, as a covariate.
+#This is another representation of the map in table form:
+#            sbi=False    sbi=True
+#wmh=False       0            1
+#wmh=True        2            3
+scdGroupMap = [ [0,1], [2,3] ] # no sbi & no wmh -> 0, sbi only -> 1, wmh only -> 2, both sbi & wmh -> 3
+
 class WMHOutcome(Outcome):
     
     phenotypeItems = ["sbi","wmh","wmhSeverityUnknown","wmhSeverity"]
