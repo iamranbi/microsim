@@ -21,19 +21,23 @@ Outcomes integrate with the Person class through:
 From `outcomes/outcome.py`:
 ```python
 class OutcomeType(Enum):
-    WMH = "wmh"                           # White matter hyperintensities (first)
-    COGNITION = "cognition"               # Cognitive function
-    CI = "ci"                             # Cognitive impairment
-    MCI = "mci"                           # Mild cognitive impairment
-    CARDIOVASCULAR = "cv"                 # General CV event
-    STROKE = "stroke"                     # Stroke (partitioned from CV)
-    MI = "mi"                             # Myocardial infarction (partitioned from CV)
-    NONCARDIOVASCULAR = "noncv"          # Non-CV outcomes
-    DEMENTIA = "dementia"                 # Dementia (after cognition)
-    EPILEPSY = "epilepsy"                 # Epilepsy
-    DEATH = "death"                       # Death (near end)
-    QUALITYADJUSTED_LIFE_YEARS = "qalys" # QALYs (last)
+    WMH = "wmh"                                    # White matter hyperintensities (first)
+    COGNITION = "cognition"                        # Cognitive function
+    CI = "ci"                                      # Cognitive impairment
+    MCI = "mci"                                    # Mild cognitive impairment
+    DIABETES = "diabetes"                          # Diabetes
+    CHRONIC_KIDNEY_DISEASE = "chronicKidneyDisease" # Chronic kidney disease
+    CARDIOVASCULAR = "cv"                          # General CV event
+    STROKE = "stroke"                              # Stroke (partitioned from CV)
+    MI = "mi"                                      # Myocardial infarction (partitioned from CV)
+    NONCARDIOVASCULAR = "noncv"                    # Non-CV outcomes
+    DEMENTIA = "dementia"                          # Dementia (after cognition)
+    EPILEPSY = "epilepsy"                          # Epilepsy
+    DEATH = "death"                                # Death (near end)
+    QUALITYADJUSTED_LIFE_YEARS = "qalys"           # QALYs (last)
 ```
+
+`outcome.py` also defines `EventOutcomeType` (same members as `OutcomeType` minus `COGNITION`), used when only discrete events need to be tracked.
 
 **Dependency rationale:**
 - Cognition evaluated before stroke (stroke affects cognition)
@@ -97,8 +101,21 @@ class OutcomeType(Enum):
 - `qaly_model_repository.py`: QALY model repository
 - `qaly_assignment_strategy.py`: QALY assignment strategies
 
+### Diabetes
+- `diabetes_model.py`: Diabetes outcome model (`DiabetesModel`) and prevalence seeding model (`DiabetesPrevalenceModel`); gated on A1C ≥ 6.5 for first detection
+- `diabetes_model_repository.py`: Diabetes model repository (`DiabetesModelRepository`, `DiabetesPrevalenceModelRepository`)
+
+### Chronic Kidney Disease
+- `chronic_kidney_disease_model.py`: CKD outcome model (`ChronicKidneyDiseaseModel`) and prevalence seeding model (`ChronicKidneyDiseasePrevalenceModel`); gated on GFR < 60 for first detection
+- `chronic_kidney_disease_model_repository.py`: CKD model repository (`ChronicKidneyDiseaseModelRepository`, `ChronicKidneyDiseasePrevalenceModelRepository`)
+
+### Outcome Prevalence Infrastructure
+- `outcome_prevalence_base.py`: Abstract base class `OutcomePrevalenceBase` for all priorToSim prevalence models; subclasses implement `get_linear_predictor_for_person` and set `_outcomeType`
+- `outcome_prevalence_model_repository.py`: `OutcomePrevalenceModelRepository` — parallel to `OutcomeModelRepository` but for priorToSim seeding; also holds `DEFAULT_PREVALENCE_RISK_SCALING` dict with calibrated per-outcome risk scaling values
+
 ### Other Models
 - `sbi_model.py`: SBI (Silent Brain Infarction) model
+- `reference.py`: `Reference` class holding external epidemiological reference data (e.g., GBD incidence/prevalence tables for epilepsy)
 
 ## Model Specification Files
 
@@ -256,7 +273,7 @@ From `outcome.py` lines 3-13, the complete workflow is:
    from microsim.outcomes.new_outcome_model_repository import NewOutcomeModelRepository
 
    class OutcomeModelRepository:
-       def __init__(self, wmhSpecific=True):
+       def __init__(self, wmhSpecific=True, riskScaling=None):
            self._repository = {
                ...
                OutcomeType.NEW_OUTCOME: NewOutcomeModelRepository(),

@@ -4,7 +4,7 @@ This document provides detailed guidance for working with the trial simulation f
 
 ## Overview
 
-The trial framework enables simulation-based clinical trial comparisons, allowing researchers to test different treatment strategies against control populations. Trials use statistical analysis methods (Cox regression, logistic regression, relative risk) to assess outcomes and compare interventions.
+The trial framework enables simulation-based clinical trial comparisons, allowing researchers to test different treatment strategies against control populations. Trials use statistical analysis methods (Cox regression, logistic regression, linear regression, relative risk, incidence rate) to assess outcomes and compare interventions.
 
 ## Directory Structure
 
@@ -20,6 +20,7 @@ The `trials/` directory contains the experimental design framework:
   - `logistic_regression_analysis.py`: Logistic regression for binary outcomes
   - `linear_regression_analysis.py`: Linear regression for continuous outcomes
   - `relative_risk_analysis.py`: Relative risk calculations
+  - `incidence_rate_analysis.py`: Incidence rate analysis (events per 1000 person-years)
   - `regression_analysis.py`: Base regression analysis class
 - `trialset.py`: Management of multiple related trials. **Not functional — needs to be updated before use.**
 
@@ -47,6 +48,7 @@ The `trials/` directory contains the experimental design framework:
 - **Logistic regression**: Binary outcome analysis with odds ratios
 - **Linear regression**: Continuous outcome analysis
 - **Relative risk analysis**: Direct risk comparisons between arms
+- **Incidence rate analysis**: Events per 1000 person-years for each arm
 
 The assessor compares populations and generates statistical summaries of treatment effects.
 
@@ -117,8 +119,10 @@ TrialDescription — you do not create populations and pass them in.
    ```
 
 4. **Run the simulation**: `trial.run()` advances both arms — control for the full
-   duration with no treatment strategies, treated for 1 wave with strategy status
-   `INITIALIZE` and the remaining `duration-1` waves with status `MAINTAIN`.
+   duration with no treatment strategies, treated for 1 wave with the strategy's
+   initial (`BEGIN`) status, after which `run()` flips each active strategy to
+   `TreatmentStrategyStatus.MAINTAIN` and advances the treated arm the remaining
+   `duration-1` waves. (The status enum has only `BEGIN`, `MAINTAIN`, `END`.)
    ```python
    trial.run()
    ```
@@ -152,7 +156,7 @@ Trial (experimental design)
   ↓ compares
 Multiple Populations with different TreatmentStrategies
   ↓ analyzed by
-TrialOutcomeAssessor (Cox regression, logistic regression, relative risk)
+TrialOutcomeAssessor (Cox regression, logistic regression, linear regression, relative risk, incidence rate)
 ```
 
 Each trial arm is a complete Population with its own:

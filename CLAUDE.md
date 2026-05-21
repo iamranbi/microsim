@@ -36,12 +36,16 @@ poetry run format  # Format code with black (line-length: 99)
 ### Directory Structure
 
 The codebase is organized into functional directories:
+- `common/`: Shared enums and data-access helpers (`AgeScope`, `PopulationType`, `VariableType`, `data_loader`) - See `microsim/common/claude.md` for detailed documentation
+- `person/`: The `Person` agent plus factory and filter utilities - See `microsim/person/claude.md` for detailed documentation
+- `population/`: `Population`, `PopulationFactory`, and the population model repositories - See `microsim/population/claude.md` for detailed documentation
+- `regression_models/`: Reusable regression/statistical model building blocks shared by risk factors and outcomes - See `microsim/regression_models/claude.md` for detailed documentation
 - `outcomes/`: All outcome models and repositories - See `microsim/outcomes/claude.md` for detailed documentation
 - `risk_factors/`: Risk factor models and enums (age, BP, cholesterol, demographics, etc.) - See `microsim/risk_factors/claude.md` for detailed documentation
 - `treatment_strategies/`: Treatment strategy definitions - See `microsim/treatment_strategies/claude.md` for detailed documentation
 - `default_treatments/`: Default treatment enums and application logic - See `microsim/default_treatments/claude.md` for detailed documentation
-- `trials/`: Trial framework (orchestration, analysis, outcome assessment)
-- `test/`: Unit tests with fixtures and helpers
+- `trials/`: Trial framework (orchestration, analysis, outcome assessment) - See `microsim/trials/claude.md` for detailed documentation
+- `test/`: Unit tests with fixtures and helpers - See `microsim/test/claude.md` for test guidelines
 - `data/`: NHANES and Kaiser datasets, model specifications
 
 ### Core Design Pattern: Repository + Factory
@@ -59,17 +63,21 @@ Population (collection of Persons)
   ↓ created by
 PopulationFactory
   ↓ configured with
-PopulationModelRepository
-  ├── RiskModelRepository (dynamic risk factors)
-  ├── InitializationRepository (static risk factors)
-  ├── OutcomeModelRepository (health outcomes)
-  └── TreatmentStrategyRepository
+PopulationModelRepository (sub-repositories keyed by PopulationRepositoryType)
+  ├── CohortDynamicRiskFactorModelRepository (dynamic risk factors)
+  ├── CohortStaticRiskFactorModelRepository  (static risk factors)
+  ├── DefaultTreatmentModelRepository        (usual-care treatments)
+  └── OutcomeModelRepository                 (health outcomes)
+
+(TreatmentStrategyRepository is NOT part of PopulationModelRepository. Experimental
+ treatment strategies are injected separately via Population.advance(..., treatmentStrategies=...)
+ / Trial.run(), layered on top of the default usual-care models above.)
 
 Trial (experimental design)
   ↓ compares
 Multiple Populations with different TreatmentStrategies
   ↓ analyzed by
-TrialOutcomeAssessor (Cox regression, logistic regression, relative risk)
+TrialOutcomeAssessor (Cox regression, logistic regression, linear regression, relative risk, incidence rate)
 
   See microsim/trials/claude.md for detailed trial framework documentation
 ```
@@ -80,7 +88,7 @@ TrialOutcomeAssessor (Cox regression, logistic regression, relative risk)
 - Wave numbering starts at -1 before first advance
 - Wave 1 = transition from subscript[0] → subscript[1]
 - If a person has an event during wave 1: status is Negative at [0], Positive at [1]
-- See person.py:24-34 for detailed explanation
+- See the `Person` class docstring in `person/person.py` for detailed explanation
 
 **Person structure:**
 - `_staticRiskFactors`: Demographics that don't change (race, education, gender)

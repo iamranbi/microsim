@@ -37,7 +37,8 @@ Default treatments are categorized similarly to risk factors:
 
 **Continuous Treatments** (`ContinuousDefaultTreatmentsType`):
 - `ANTI_HYPERTENSIVE_COUNT`: Number of antihypertensive medications (integer count)
-- `OTHER_LIPID_LOWERING_MEDICATION_COUNT`: Number of non-statin lipid-lowering medications (integer count)
+
+Note: `OTHER_LIPID_LOWERING_MEDICATION_COUNT` is defined in `DefaultTreatmentsType` but is not currently a member of `ContinuousDefaultTreatmentsType` and has no registered model in `DefaultTreatmentModelRepository`.
 
 ## Key Files in This Module
 
@@ -83,7 +84,7 @@ data/*CohortModelSpec.json
 Default treatments are tracked in Person instances similar to dynamic risk factors:
 
 ```python
-# In person.py (lines 92-94)
+# In person/person.py (lines 91-93)
 for key, value in defaultTreatmentsDict.items():
     setattr(self, "_" + key, [value])
 self._defaultTreatments = list(defaultTreatmentsDict.keys())
@@ -92,7 +93,7 @@ self._defaultTreatments = list(defaultTreatmentsDict.keys())
 **Access patterns:**
 - `person._statin`: Array of statin status by wave
 - `person._antiHypertensiveCount`: Array of antihypertensive medication counts by wave
-- `person.get_last_default_treatment(DefaultTreatmentsType.STATIN)`: Get current treatment value
+- `person.get_last_default_treatment(DefaultTreatmentsType.STATIN.value)`: Get current treatment value (takes a string, not an enum)
 
 **Wave semantics:**
 - Default treatments stored as time-indexed arrays (like dynamic risk factors)
@@ -101,7 +102,7 @@ self._defaultTreatments = list(defaultTreatmentsDict.keys())
 
 ## Simulation Flow: Default Treatments
 
-During `person.advance()` (person.py:99-124), default treatments are processed in this order:
+During `person.advance()` (person/person.py:102-129), default treatments are processed in this order:
 
 1. **Dynamic risk factors updated** (`advance_risk_factors()`)
 2. **Default treatments updated** (`advance_treatments()`) ← Default treatments applied here
@@ -111,7 +112,7 @@ During `person.advance()` (person.py:99-124), default treatments are processed i
 
 ### Treatment Update Process
 
-From person.py:140-146:
+From person/person.py:147-154:
 
 ```python
 def advance_treatments(self, defaultTreatmentRepository):
@@ -128,7 +129,7 @@ def get_next_treatment(self, treatment, treatmentRepository):
 
 ### Treatment Strategy Override
 
-Treatment strategies can modify default treatments via person.py:162-166:
+Treatment strategies can modify default treatments via person/person.py:169-173:
 
 ```python
 def update_treatments(self, treatmentStrategy):
@@ -162,9 +163,9 @@ self._repository = {
 ### Accessing Default Treatments from a Person
 
 ```python
-# Get current (most recent) treatment value
-current_statin = person.get_last_default_treatment(DefaultTreatmentsType.STATIN)
-current_bp_meds = person.get_last_default_treatment(DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT)
+# Get current (most recent) treatment value (method takes the enum's .value string)
+current_statin = person.get_last_default_treatment(DefaultTreatmentsType.STATIN.value)
+current_bp_meds = person.get_last_default_treatment(DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value)
 
 # Access full treatment history
 statin_history = person._statin  # Array indexed by wave
@@ -294,6 +295,6 @@ class TestDefaultTreatments(unittest.TestCase):
 - **microsim/risk_factors/claude.md**: Default treatments use same repository pattern and model types
 - **microsim/treatment_strategies/claude.md**: For experimental treatments that override defaults
 - **microsim/outcomes/claude.md**: Outcome models may use default treatments as predictors
-- **person.py**: For default treatment storage, tracking, and update logic (lines 92-94, 140-146, 162-166)
+- **person/person.py**: For default treatment storage, tracking, and update logic (lines 91-93, 147-154, 169-173)
 - **population_model_repository.py**: For repository access via PopulationRepositoryType enum
 - **default_treatments/default_treatment_model_repository.py**: For DefaultTreatmentModelRepository implementation
