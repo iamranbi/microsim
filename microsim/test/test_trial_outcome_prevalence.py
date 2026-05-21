@@ -2,11 +2,11 @@ import unittest
 
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.trials.trial_description import NhanesTrialDescription, KaiserTrialDescription
 from microsim.trials.trial import Trial
 from microsim.trials.trial_type import TrialType
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 

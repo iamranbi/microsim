@@ -1,6 +1,6 @@
 import unittest
 import pdb
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 import numpy as np
 
 class TestOverallPopulationFunction(unittest.TestCase):

@@ -1,11 +1,11 @@
 import unittest
 
-from microsim.age_scope import AgeScope
+from microsim.common.age_scope import AgeScope
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
-from microsim.population_factory import PopulationFactory
-from microsim.population_type import PopulationType
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.common.population_type import PopulationType
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 

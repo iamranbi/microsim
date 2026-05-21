@@ -13,7 +13,7 @@ from microsim.outcomes.outcome_prevalence_model_repository import (
 )
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.trials.trial_description import NhanesTrialDescription
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 

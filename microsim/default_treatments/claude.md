@@ -75,8 +75,8 @@ data/*CohortModelSpec.json
    - Initializes models using cohort model specifications
 
 2. **Model types**:
-   - `StatsModelLinearRiskFactorModel`: For probability-based treatments (statin)
-   - `StatsModelRoundedLinearRiskFactorModel`: For count-based treatments (medication counts)
+   - `LinearRiskFactorModel`: For probability-based treatments (statin)
+   - `RoundedLinearRiskFactorModel`: For count-based treatments (medication counts)
 
 ## Integration with Person Class
 
@@ -268,7 +268,7 @@ Default treatment testing typically involves:
 **Example test structure:**
 ```python
 import unittest
-from microsim.population_factory import PopulationFactory
+from microsim.population import PopulationFactory
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 
 class TestDefaultTreatments(unittest.TestCase):

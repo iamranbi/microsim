@@ -52,15 +52,15 @@ This distinction affects how they are modeled and used in outcome predictions. S
 
 The framework supports multiple statistical model types for risk factor prediction:
 
-1. **Linear Models**: `StatsModelLinearRiskFactorModel`
+1. **Linear Models**: `LinearRiskFactorModel`
    - For continuous outcomes with normal distributions
    - Used for: Blood pressure, cholesterol, BMI, etc.
 
-2. **Logistic Models**: `StatsModelLogisticRiskFactorModel`
+2. **Logistic Models**: `LogisticRiskFactorModel`
    - For binary outcomes
    - Used for: Afib, PVD, smoking status transitions
 
-3. **Cox Proportional Hazards**: `StatsModelCoxModel`
+3. **Cox Proportional Hazards**: `CoxRiskFactorModel`
    - For time-to-event outcomes
    - Used for: First occurrence of conditions
 
@@ -68,7 +68,7 @@ The framework supports multiple statistical model types for risk factor predicti
    - `NHANESLinearRiskFactorModel`: NHANES-specific linear models
    - `LogLinearRiskFactorModel`: Log-transformed linear models
 
-Model implementations are found in the root directory (`statsmodel_*_risk_factor_model.py` files).
+Model implementations are found in `microsim/regression_models/` (`*_risk_factor_model.py` files).
 
 ### Model Specification Files
 
@@ -144,7 +144,7 @@ To modify risk factor model coefficients or parameters:
    - Ensure JSON structure matches expected schema
 
 2. **Modify model implementations**:
-   - Edit `statsmodel_*_risk_factor_model.py` files in the root directory
+   - Edit `*_risk_factor_model.py` files in `microsim/regression_models/`
    - Update model logic, transformations, or estimation methods
 
 3. **Update risk factor enumerations**:
@@ -192,7 +192,7 @@ Risk factor tests are typically found in `test/test_risk_factors.py` or similar 
 
 ```python
 import unittest
-from microsim.population_factory import PopulationFactory
+from microsim.population import PopulationFactory
 
 class TestRiskFactorModel(unittest.TestCase):
     def setUp(self):
@@ -211,4 +211,4 @@ class TestRiskFactorModel(unittest.TestCase):
 - **Outcome models**: `../outcomes/` (outcomes depend on risk factors for predictions)
 - **Treatment strategies**: `../treatment_strategies/` (treatments modify risk factors)
 - **Person class**: `../person.py` (risk factor storage and evolution)
-- **Model argument transformation**: `../model_argument_transform.py` (risk factor usage in models)
+- **Model argument transformation**: `../regression_models/model_argument_transform.py` (risk factor usage in models)

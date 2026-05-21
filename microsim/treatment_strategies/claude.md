@@ -295,7 +295,7 @@ Complete workflow:
 
 **Population-level application:**
 ```python
-from microsim.population_factory import PopulationFactory
+from microsim.population import PopulationFactory
 from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
 from microsim.treatment_strategies.bp_treatment_strategies import SprintTreatment
 

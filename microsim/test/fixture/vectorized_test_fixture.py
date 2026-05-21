@@ -4,7 +4,7 @@ from microsim.outcomes.cognition_model import GCPModel
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.helper.init_vectorized_population_dataframe import (

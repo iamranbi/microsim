@@ -1,11 +1,11 @@
-from microsim.statsmodel_logistic_risk_factor_model import StatsModelLogisticRiskFactorModel
+from microsim.regression_models.logistic_risk_factor_model import LogisticRiskFactorModel
 
-# from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+# from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 
 import numpy as np
 
 
-class StatsModelRandInterceptLogisticRiskFactorModel(StatsModelLogisticRiskFactorModel):
+class RandInterceptLogisticRiskFactorModel(LogisticRiskFactorModel):
     def __init__(self, regression_model, log_transform=False, rand_intercept_name=None):
         super().__init__(regression_model, log_transform)
         self._rand_intercept_name = rand_intercept_name

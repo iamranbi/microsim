@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -15,14 +15,14 @@ from microsim.trials.trial_type import TrialType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 import random
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.population_factory import PopulationFactory
-from microsim.person_factory import PersonFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.dementia_model_repository import DementiaModelRepository
 from microsim.outcomes.cv_model_repository import CVModelRepository
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.population_model_repository import PopulationRepositoryType
+from microsim.population.population_model_repository import PopulationRepositoryType
 
 class TestBasicTrialOperations(unittest.TestCase):
     def setUp(self):  

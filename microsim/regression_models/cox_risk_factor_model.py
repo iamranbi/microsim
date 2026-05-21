@@ -1,10 +1,10 @@
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 import numpy as np
 
 
-class StatsModelCoxModel(StatsModelLinearRiskFactorModel):
+class CoxRiskFactorModel(LinearRiskFactorModel):
     def __init__(self, regression_model, log_transform=False):
-        super(StatsModelCoxModel, self).__init__(regression_model, log_transform)
+        super(CoxRiskFactorModel, self).__init__(regression_model, log_transform)
         self.one_year_linear_cumulative_hazard = (
             regression_model._one_year_linear_cumulative_hazard
         )
@@ -14,7 +14,7 @@ class StatsModelCoxModel(StatsModelLinearRiskFactorModel):
         return 0
 
     def linear_predictor(self, person):
-        return super(StatsModelCoxModel, self).estimate_next_risk(person)
+        return super(CoxRiskFactorModel, self).estimate_next_risk(person)
 
     def linear_predictor_vectorized(self, person):
         return self.estimate_next_risk_vectorized(person)

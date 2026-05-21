@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from microsim.population_factory import PopulationFactory
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.trials.trial_description import NhanesTrialDescription
@@ -56,7 +56,8 @@ class Validation:
         nhanesPop = PopulationFactory.get_nhanes_population(n=popSize, year=2017, personFilters=pf, nhanesWeights=True, distributions=False)
 
         print("\nVALIDATION OF VASCULAR RISK FACTORS OVER TIME")
-        pop.print_vascular_rfs_over_time(nhanesPop, path=path)
+        pop.plot_vascular_rfs_last_wave(nhanesPop, path=path)
+        pop.print_lastyear_summary_comparison(nhanesPop)
         print("\nVALIDATION OF CV EVENT INCIDENCE AND MORTALITY")
         pop.print_cv_standardized_rates()
         print("\nVALIDATION OF DEMENTIA INCIDENCE")

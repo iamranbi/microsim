@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 from microsim.outcomes.outcome import OutcomeType, Outcome, EventOutcomeType
-from microsim.population import Population
-from microsim.population_factory import PopulationFactory
+from microsim.population.population import Population
+from microsim.population.population_factory import PopulationFactory
 
 
 class TestGetOutcomeFlagsPerWave(unittest.TestCase):

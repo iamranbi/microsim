@@ -1,10 +1,10 @@
-from microsim.data_loader import load_regression_model
-from microsim.statsmodel_logistic_risk_factor_model import StatsModelLogisticRiskFactorModel
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+from microsim.common.data_loader import load_regression_model
+from microsim.regression_models.logistic_risk_factor_model import LogisticRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 
 #the intercept of this model was modified in order to have agreement with the 2019 global burden of disease data
 #optimization of the intercept was performed on the afibModelRecalibrations notebook
-class AFibPrevalenceModel(StatsModelLogisticRiskFactorModel):
+class AFibPrevalenceModel(LogisticRiskFactorModel):
     def __init__(self):
         super().__init__(load_regression_model("BaselineAFibModel"))
     
@@ -15,7 +15,7 @@ class AFibPrevalenceModel(StatsModelLogisticRiskFactorModel):
 #global burden of disease data
 #the intercept and age coefficient of the cohort afib model were modified to fit the gbd data
 #note that the riskWithResidual is not bounded by 0, 1 but the rng.uniform is 
-class AFibIncidenceModel(StatsModelLinearRiskFactorModel):
+class AFibIncidenceModel(LinearRiskFactorModel):
     def __init__(self):
         regression_model = load_regression_model("afibCohortModel")
         super().__init__(regression_model, False)

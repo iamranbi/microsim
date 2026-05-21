@@ -14,7 +14,7 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.outcomes.qaly_assignment_strategy import QALYAssignmentStrategy
-from microsim.gfr_equation import GFREquation
+from microsim.risk_factors.gfr_equation import GFREquation
 from microsim.risk_factors.pvd_model import PVDPrevalenceModel
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
@@ -77,7 +77,7 @@ class Person:
         #also, there is currently an inconsistency: outcomes are provided ready to the Person instance but everything
         #else is not, eg the lists are created here and not in the build_person method, if all were dictionaries this would be resolved
         #an attempt on this showed that there are deep dependencies on Person attributes,
-        #eg StatsModelLinearRiskFactorModel.get_model_argument_for_coeff_name expects to finds these attributes directly on Person instances
+        #eg LinearRiskFactorModel.get_model_argument_for_coeff_name expects to finds these attributes directly on Person instances
         #for now I will keep lists of the static, dynamic risk factors etc so that I know how to advance each person
         #even though it is not ideal for memory purposes all Person instances to have exactly the same lists...
 

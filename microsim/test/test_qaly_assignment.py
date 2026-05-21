@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from microsim.person import Person
+from microsim.person.person import Person
 #from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.risk_factors.education import Education
 from microsim.outcomes.outcome import Outcome, OutcomeType
@@ -13,11 +13,11 @@ from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.dementia_model import DementiaModel
 from microsim.outcomes.cognition_model import GCPModel, GCPStrokeModel
-from microsim.initialization_repository import InitializationRepository
-from microsim.population_factory import PopulationFactory
-from microsim.person_factory import PersonFactory
+from microsim.population.initialization_repository import InitializationRepository
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
-from microsim.static_risk_factor_over_time_repository import StaticDefaultTreatmentModelRepository, StaticRiskFactorOverTimeRepository
+from microsim.test.static_risk_factor_over_time_repository import StaticDefaultTreatmentModelRepository, StaticRiskFactorOverTimeRepository
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender

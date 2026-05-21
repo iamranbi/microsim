@@ -1,8 +1,8 @@
 import unittest
 import pandas as pd
 
-from microsim.person import Person
-from microsim.person_factory import PersonFactory
+from microsim.person.person import Person
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender

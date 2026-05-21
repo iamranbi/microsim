@@ -1,10 +1,10 @@
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.risk_factors.education import Education

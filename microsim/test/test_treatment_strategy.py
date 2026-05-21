@@ -1,9 +1,9 @@
 import unittest
-from microsim.initialization_repository import InitializationRepository
+from microsim.population.initialization_repository import InitializationRepository
 import numpy as np
 import pandas as pd
 
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.treatment_strategies.bp_treatment_strategies import (
@@ -11,11 +11,11 @@ from microsim.treatment_strategies.bp_treatment_strategies import (
     AddASingleBPMedTreatmentStrategy,
     jnc8ForHighRiskLowBpTarget
 )
-from microsim.population_factory import PopulationFactory
-from microsim.population import Population
-from microsim.person_factory import PersonFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.population.population import Population
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -25,7 +25,7 @@ from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.test.outcome_models_repositories import NoOutcome
 from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
-from microsim.population_model_repository import PopulationRepositoryType
+from microsim.population.population_model_repository import PopulationRepositoryType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategyStatus
 from microsim.risk_factors.modality import Modality
 

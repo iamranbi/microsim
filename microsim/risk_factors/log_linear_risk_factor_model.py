@@ -1,5 +1,5 @@
 import numpy as np
-from microsim.nhanes_linear_risk_factor_model import NHANESLinearRiskFactorModel
+from microsim.risk_factors.nhanes_linear_risk_factor_model import NHANESLinearRiskFactorModel
 
 
 class LogLinearRiskFactorModel(NHANESLinearRiskFactorModel):

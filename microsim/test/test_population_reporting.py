@@ -2,11 +2,11 @@ import unittest
 import pandas as pd
 import numpy as np
 
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.outcomes.outcome import Outcome
 from microsim.outcomes.outcome import OutcomeType
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.test.outcome_models_repositories import AlwaysNonFatalStroke, AlwaysFatalStroke, AlwaysNonFatalMI
 
 class TestPopulationReporting(unittest.TestCase):

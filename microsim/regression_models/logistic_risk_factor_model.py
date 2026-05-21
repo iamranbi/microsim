@@ -1,9 +1,9 @@
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 
 import numpy as np
 
 
-class StatsModelLogisticRiskFactorModel(StatsModelLinearRiskFactorModel):
+class LogisticRiskFactorModel(LinearRiskFactorModel):
     def __init__(self, regression_model, log_transform=False):
         super().__init__(regression_model, log_transform)
 

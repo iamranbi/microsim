@@ -217,10 +217,10 @@ From `outcome.py` lines 3-13, the complete workflow is:
 
 3. **Create Model class(es)** in `outcomes/new_outcome_model.py`:
    ```python
-   from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
-   from microsim.data_loader import load_model_spec
+   from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
+   from microsim.common.data_loader import load_model_spec
 
-   class NewOutcomeModel(StatsModelLinearRiskFactorModel):
+   class NewOutcomeModel(LinearRiskFactorModel):
        def __init__(self):
            model_spec = load_model_spec("NewOutcomeModelSpec")
            super().__init__(RegressionModel(**model_spec))
