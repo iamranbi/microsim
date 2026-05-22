@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -14,19 +14,19 @@ from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
 )
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
-from microsim.initialization_repository import InitializationRepository
+from microsim.population.initialization_repository import InitializationRepository
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.population_factory import PopulationFactory
-from microsim.person_factory import PersonFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.dementia_model_repository import DementiaModelRepository
 from microsim.outcomes.cv_model_repository import CVModelRepository
-from microsim.person_filter import PersonFilter
+from microsim.person.person_filter import PersonFilter
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.population_model_repository import PopulationRepositoryType
+from microsim.population.population_model_repository import PopulationRepositoryType
 from microsim.outcomes.cognition_outcome import CognitionOutcome
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.wmh_outcome import WMHOutcome

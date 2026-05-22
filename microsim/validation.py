@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from microsim.population_factory import PopulationFactory
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.trials.trial_description import NhanesTrialDescription
@@ -23,13 +23,10 @@ class Validation:
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2007, personFilters=None, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
         print("2013 Hypertension")
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter()
         pf.add_filter(filterType="df",
                       filterName="lowAntiHypertensiveLimit",
                       filterFunction = lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]>0)
-        pf.add_filter(filterType="df",
-                      filterName="adults",
-                      filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2013, personFilters=pf, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
 
@@ -46,7 +43,7 @@ class Validation:
         popSize = 100000
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=False)
         pop.advance_parallel(nYears, None, nWorkers)
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter([])
         pf.add_filter(filterType="df",
                       filterName="lowAge",
                       filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=36)
@@ -56,7 +53,8 @@ class Validation:
         nhanesPop = PopulationFactory.get_nhanes_population(n=popSize, year=2017, personFilters=pf, nhanesWeights=True, distributions=False)
 
         print("\nVALIDATION OF VASCULAR RISK FACTORS OVER TIME")
-        pop.print_vascular_rfs_over_time(nhanesPop, path=path)
+        pop.plot_vascular_rfs_last_wave(nhanesPop, path=path)
+        pop.print_lastyear_summary_comparison(nhanesPop)
         print("\nVALIDATION OF CV EVENT INCIDENCE AND MORTALITY")
         pop.print_cv_standardized_rates()
         print("\nVALIDATION OF DEMENTIA INCIDENCE")
@@ -69,7 +67,7 @@ class Validation:
         print("\nVALIDATION OF TREATMENT EFFECTS")
         nYears=5
         nSimulations = 4
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter([])
         for bpMedsAdded in [1,2,3,4]:
             miRRList = list()
             strokeRRList = list()

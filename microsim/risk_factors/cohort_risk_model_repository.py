@@ -1,6 +1,6 @@
 from microsim.risk_factors.risk_model_repository import RiskModelRepository
-from microsim.stats_model_rounded_linear_risk_factor_model import StatsModelRoundedLinearRiskFactorModel
-from microsim.data_loader import load_regression_model
+from microsim.regression_models.rounded_linear_risk_factor_model import RoundedLinearRiskFactorModel
+from microsim.common.data_loader import load_regression_model
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.pvd_model import PVDIncidenceModel
 from microsim.risk_factors.age_model import AgeModel
@@ -38,13 +38,13 @@ class CohortDynamicRiskFactorModelRepository(RiskModelRepository):
 
         self._initialize_linear_probability_risk_model(DynamicRiskFactorsType.ANY_PHYSICAL_ACTIVITY.value, "anyPhysicalActivityCohortModel")
 
-class AlcoholCategoryModel(StatsModelRoundedLinearRiskFactorModel):
+class AlcoholCategoryModel(RoundedLinearRiskFactorModel):
     def estimate_next_risk(self, person):
-        drinks = super(StatsModelRoundedLinearRiskFactorModel, self).estimate_next_risk(person)
+        drinks = super(RoundedLinearRiskFactorModel, self).estimate_next_risk(person)
         return AlcoholCategory.get_category_for_consumption(drinks if drinks > 0 else 0)
 
     def estimate_next_risk_vectorized(self, x, rng=None):
-        drinks = super(StatsModelRoundedLinearRiskFactorModel, self).estimate_next_risk_vectorized(
+        drinks = super(RoundedLinearRiskFactorModel, self).estimate_next_risk_vectorized(
             x
         )
         return AlcoholCategory.get_category_for_consumption(drinks if drinks > 0 else 0)

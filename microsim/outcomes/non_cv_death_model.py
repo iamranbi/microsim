@@ -1,13 +1,13 @@
-from microsim.statsmodel_logistic_risk_factor_model import StatsModelLogisticRiskFactorModel
-from microsim.data_loader import load_model_spec
-from microsim.regression_model import RegressionModel
+from microsim.regression_models.logistic_risk_factor_model import LogisticRiskFactorModel
+from microsim.common.data_loader import load_model_spec
+from microsim.regression_models.regression_model import RegressionModel
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.risk_factors.modality import Modality
 
 import numpy as np
 
 #this class represents non CV mortality
-class NonCVDeathModel(StatsModelLogisticRiskFactorModel):
+class NonCVDeathModel(LogisticRiskFactorModel):
     def __init__(self, wmhSpecific=True, riskScaling=1.0):
         modelSpec = load_model_spec("nhanesMortalityModelLogit")
         # Recalibrate mortalitly model to align with life table data, as explored in notebook buildNHANESMortalityModel

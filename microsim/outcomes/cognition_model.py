@@ -8,7 +8,7 @@ from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.a1c import convert_a1c_to_fasting_glucose
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from collections import OrderedDict
 

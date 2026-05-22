@@ -4,15 +4,15 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
-from microsim.statsmodel_cox_model import StatsModelCoxModel
-from microsim.cox_regression_model import CoxRegressionModel
+from microsim.regression_models.cox_risk_factor_model import CoxRiskFactorModel
+from microsim.regression_models.cox_regression_model import CoxRegressionModel
 from microsim.outcomes.outcome import OutcomeType, Outcome
 from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 from microsim.risk_factors.modality import Modality
 from microsim.outcomes.wmh_severity import WMHSeverity
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 
-class DementiaModel(StatsModelCoxModel):
+class DementiaModel(CoxRiskFactorModel):
 
     # initial parameters in notebook lookAtSurvivalFunctionForDementiaModel (linearTerm=1.33371239e-05, quadraticTerm=5.64485841e-05)
     # recalibrated fit to population incidence equation in notebook: identifyOptimalBaselineSurvivalParametersForDementia, linear multiplier = 0.5, quad = 0.05

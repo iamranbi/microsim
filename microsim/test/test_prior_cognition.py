@@ -2,10 +2,10 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
-from microsim.population_factory import PopulationFactory
-from microsim.population_model_repository import PopulationRepositoryType
+from microsim.population.population_factory import PopulationFactory
+from microsim.population.population_model_repository import PopulationRepositoryType
 from microsim.outcomes.outcome import OutcomeType
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.risk_factors.education import Education
@@ -17,7 +17,7 @@ from microsim.risk_factors.modality import Modality
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.outcomes.cognition_outcome import CognitionOutcome
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
-from microsim.person_filter_factory import PersonFilterFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
 
 
 class TestMCIFilter(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestMCIFilter(unittest.TestCase):
             DefaultTreatmentsType.STATIN.value: 0,
             DynamicRiskFactorsType.CREATININE.value: 0.9,
             "name": "testPerson"}, index=[0])
-        self.pf = PersonFilterFactory.get_person_filter()
+        self.pf = PersonFilterFactory.get_person_filter(["noMCI"])
         self.filterFunction = self.pf.filters["person"]["noMCI"]
 
     def test_mci_filter_excludes_person_with_low_gcp(self):

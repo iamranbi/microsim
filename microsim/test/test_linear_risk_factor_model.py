@@ -1,18 +1,18 @@
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.smoking_status import SmokingStatus
-from microsim.regression_model import RegressionModel
+from microsim.regression_models.regression_model import RegressionModel
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.test.helper.init_vectorized_population_dataframe import (
     init_vectorized_population_dataframe,
 )
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.person import Person
-from microsim.person_factory import PersonFactory
+from microsim.person.person import Person
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 
 import unittest
@@ -20,7 +20,7 @@ import pandas as pd
 import numpy as np
 import statsmodels.formula.api as statsmodel
 
-class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
+class TestLinearRiskFactorModel(unittest.TestCase):
     def setUp(self):
         popSize = 100
         age = np.random.normal(loc=70, scale=20, size=popSize)
@@ -180,7 +180,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             self.simpleModelResultSM.params["age"] * self.person._age[-1]
             + self.simpleModelResultSM.params["Intercept"]
         )
-        model = StatsModelLinearRiskFactorModel(self.simpleModelResult)
+        model = LinearRiskFactorModel(self.simpleModelResult)
 
         actual_model_result = model.estimate_next_risk(self.person)
 
@@ -193,7 +193,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             + self.meanModelResultSM.params["meanSbp"] * np.array(testPerson._sbp).mean()
             + self.meanModelResultSM.params["Intercept"]
         )
-        model = StatsModelLinearRiskFactorModel(self.meanModelResult)
+        model = LinearRiskFactorModel(self.meanModelResult)
 
         actual_model_result = model.estimate_next_risk(testPerson)
 
@@ -207,7 +207,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             + self.meanLagModelResultSM.params["lagSbp"] * testPerson._sbp[-1]
             + self.meanLagModelResultSM.params["Intercept"]
         )
-        model = StatsModelLinearRiskFactorModel(self.meanLagModelResult)
+        model = LinearRiskFactorModel(self.meanLagModelResult)
 
         actual_model_result = model.estimate_next_risk(testPerson)
 
@@ -221,7 +221,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             * np.log(np.array(testPerson._sbp).mean())
             + self.logMeanModelResultSM.params["Intercept"]
         )
-        model = StatsModelLinearRiskFactorModel(self.logMeanModelResult)
+        model = LinearRiskFactorModel(self.logMeanModelResult)
 
         actual_model_result = model.estimate_next_risk(testPerson)
 
@@ -236,7 +236,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             + self.raceModelResultSM.params[raceParamName]
             + self.raceModelResultSM.params["Intercept"]
         )
-        model = StatsModelLinearRiskFactorModel(self.raceModelResult)
+        model = LinearRiskFactorModel(self.raceModelResult)
 
         actual_model_result = model.estimate_next_risk(testPerson)
 
@@ -248,7 +248,7 @@ class TestStatsModelLinearRiskFactorModel(unittest.TestCase):
             np.array(testPerson._sbp).mean() * testPerson._age[-1] * self.ageSbpInteractionCoeff
             + np.array(testPerson._sbp).mean() * self.sbpInteractionCoeff
         )
-        model = StatsModelLinearRiskFactorModel(self.interactionModel)
+        model = LinearRiskFactorModel(self.interactionModel)
 
         actual_model_result = model.estimate_next_risk(testPerson)
 

@@ -33,4 +33,4 @@ class DoNothingModel:
 
     def estimate_next_risk(self, person):
         return getattr(person, f"_{self.name}")[-1]
-    
+

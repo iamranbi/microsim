@@ -2,18 +2,15 @@ import unittest
 
 from microsim.outcomes.outcome import OutcomeType
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.trials.trial_description import NhanesTrialDescription, KaiserTrialDescription
 from microsim.trials.trial import Trial
 from microsim.trials.trial_type import TrialType
-from microsim.person_filter_factory import PersonFilterFactory
-from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
+from microsim.person.person_filter_factory import PersonFilterFactory
 
 
 def _adults_filter():
-    pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
-    pf.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value] >= 18)
-    return pf
+    return PersonFilterFactory.get_person_filter()
 
 
 class TestNhanesTrialDescriptionPrevalence(unittest.TestCase):
@@ -104,7 +101,7 @@ class TestKaiserTrialEndToEnd(unittest.TestCase):
         # has no such kwarg. The crash was dormant whenever the initial draw of n
         # persons survived all filters; it only fires when bring_people_to_target_n
         # actually loops, i.e., a person-level filter drops some draws below n.
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter([])
         pf.add_filter("person", "ageAtLeast60", lambda p: p._age[0] >= 60)
         people = PopulationFactory.get_kaiser_people(n=20, personFilters=pf)
         self.assertEqual(20, people.shape[0])

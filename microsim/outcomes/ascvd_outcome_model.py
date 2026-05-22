@@ -1,14 +1,14 @@
 import numpy as np
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from microsim.outcomes.outcome import OutcomeType
 from microsim.risk_factors.modality import Modality
 
 # https://annals.org/aim/fullarticle/2683613/[XSLTImagePath]
 
-class ASCVDOutcomeModel(StatsModelLinearRiskFactorModel):
+class ASCVDOutcomeModel(LinearRiskFactorModel):
     def __init__(self, regression_model, tot_chol_hdl_ratio, black_race_x_tot_chol_hdl_ratio, wmhSpecific=True):
 
         super().__init__(regression_model, False)

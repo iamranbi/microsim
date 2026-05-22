@@ -1,10 +1,10 @@
 import numpy as np
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
-from microsim.statsmodel_rel_risk_factor_model import StatsModelRelRiskFactorModel
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
+from microsim.regression_models.relative_risk_factor_model import RelativeRiskFactorModel
 from microsim.outcomes.stroke_outcome import StrokeOutcome, StrokeSubtype, StrokeType, Localization
-from microsim.regression_model import RegressionModel
+from microsim.regression_models.regression_model import RegressionModel
 
-class StrokeNihssModel(StatsModelLinearRiskFactorModel):
+class StrokeNihssModel(LinearRiskFactorModel):
 
     def __init__(self):
         self._model = {"coefficients": {
@@ -68,7 +68,7 @@ class StrokeTypeModel():
 
 #the stroke subtype model produces a lot more than expected cardioembolic strokes
 #this model will need to be adjusted when it is needed
-class StrokeSubtypeCEModel(StatsModelRelRiskFactorModel):
+class StrokeSubtypeCEModel(RelativeRiskFactorModel):
     def __init__(self):
         
         #cardioembolic
@@ -106,7 +106,7 @@ class StrokeSubtypeCEModel(StatsModelRelRiskFactorModel):
         self._regressionModel = RegressionModel(**self._model)
         super().__init__(self._regressionModel)
 
-class StrokeSubtypeLVModel(StatsModelRelRiskFactorModel):
+class StrokeSubtypeLVModel(RelativeRiskFactorModel):
     def __init__(self):
         
         #LA_atherosclerosis
@@ -144,7 +144,7 @@ class StrokeSubtypeLVModel(StatsModelRelRiskFactorModel):
         self._regressionModel = RegressionModel(**self._model)
         super().__init__(self._regressionModel)
 
-class StrokeSubtypeSVModel(StatsModelRelRiskFactorModel):
+class StrokeSubtypeSVModel(RelativeRiskFactorModel):
     def __init__(self):
         
         #SV_occlusion

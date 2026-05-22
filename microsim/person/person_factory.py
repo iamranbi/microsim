@@ -5,7 +5,7 @@ from microsim.risk_factors.alcohol_category import AlcoholCategory
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
 from microsim.risk_factors.risk_model_repository import RiskModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
@@ -14,7 +14,7 @@ from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from microsim.outcomes.stroke_outcome import StrokeOutcome
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
-from microsim.population_type import PopulationType
+from microsim.common.population_type import PopulationType
 from microsim.outcomes.wmh_model_repository import WMHModelRepository
 from microsim.outcomes.epilepsy_model import EpilepsyPrevalenceModel
 from microsim.outcomes.cognition_model import CognitionPrevalenceModel
@@ -96,7 +96,7 @@ class PersonFactory:
 
         #TO DO: find a way to include everything here, including the rfs that need initialization
         #the PVD model would be easy to implement, eg with an estimate_next_risk_for_patient_characteristics function
-        #but the AFIB model would be more difficult because it relies on statsmodel_logistic_risk file
+        #but the AFIB model would be more difficult because it relies on the logistic_risk_factor_model file
         #for now include None, in order to create the risk factor lists correctly at the Person instance
         personDynamicRiskFactors = dict()
         for rfd in DynamicRiskFactorsType:

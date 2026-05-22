@@ -11,7 +11,7 @@ exposed and that need separate fixes. Those tests are tagged in their docstrings
 import unittest
 import pandas as pd
 
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.stroke_outcome import StrokeOutcome

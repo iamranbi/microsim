@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -13,8 +13,8 @@ from microsim.test.do_not_change_risk_factors_model_repository import (
     DoNotChangeRiskFactorsModelRepository,
 )
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
-from microsim.population_factory import PopulationFactory
-from microsim.person_factory import PersonFactory
+from microsim.population.population_factory import PopulationFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from microsim.population_factory import PopulationType
+from microsim.population.population_factory import PopulationType
 from microsim.trials.trial_type import TrialType
 from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository

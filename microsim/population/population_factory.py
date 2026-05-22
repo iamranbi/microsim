@@ -7,13 +7,12 @@ from scipy.optimize import brentq
 from enum import Enum
 import math
 
-from microsim.person_factory import PersonFactory
-from microsim.person_filter_factory import PersonFilterFactory
-from microsim.person_filter import PersonFilter
-from microsim.population import Population
-from microsim.age_scope import AgeScope
+from microsim.person.person_factory import PersonFactory
+from microsim.person.person_filter_factory import PersonFilterFactory
+from microsim.population.population import Population
+from microsim.common.age_scope import AgeScope
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
-from microsim.population_model_repository import PopulationModelRepository, PopulationRepositoryType
+from microsim.population.population_model_repository import PopulationModelRepository, PopulationRepositoryType
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
 from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevalenceModelRepository
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
@@ -26,10 +25,10 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.alcohol_category import AlcoholCategory
-from microsim.standardized_population import StandardizedPopulation
-from microsim.variable_type import VariableType
+from microsim.population.standardized_population import StandardizedPopulation
+from microsim.common.variable_type import VariableType
 from microsim.outcomes.outcome import OutcomeType
-from microsim.population_type import PopulationType
+from microsim.common.population_type import PopulationType
 from microsim.risk_factors.modality import Modality
 
 class PopulationFactory:
@@ -253,8 +252,7 @@ class PopulationFactory:
             nhanesDf = nhanesDf.loc[nhanesDf.year == year]
 
         if personFilters is None: #since we started including children in the NHANES df, by default use an adult filter on the df
-            personFilters = PersonFilter()
-            personFilters.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
+            personFilters = PersonFilterFactory.get_person_filter()
         else:
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 

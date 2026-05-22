@@ -1,17 +1,17 @@
-#from microsim.person import Person
+#from microsim.person.person import Person
 #from microsim.outcomes.gcp_model import GCPModel
 #from microsim.risk_factors.gender import NHANESGender
 #from microsim.risk_factors.race_ethnicity import RaceEthnicity
 #from microsim.risk_factors.smoking_status import SmokingStatus
 #from microsim.risk_factors.education import Education
 #from microsim.risk_factors.alcohol_category import AlcoholCategory
-#from microsim.population_factory import PopulationFactory
+#from microsim.population.population_factory import PopulationFactory
 
 import unittest
 import pandas as pd
 import numpy as np
 from microsim.outcomes.outcome import OutcomeType, Outcome
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 
 class TestPopulation(unittest.TestCase):
     def setUp(self):

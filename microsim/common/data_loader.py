@@ -1,12 +1,13 @@
 import json
 import re
 import os.path
-from microsim.regression_model import RegressionModel
+from microsim.regression_models.regression_model import RegressionModel
 
 
 def get_absolute_datafile_path(filename):
-    abs_module_path = os.path.abspath(os.path.dirname(__file__))
-    abs_datafile_path = os.path.normpath(os.path.join(abs_module_path, "./data/", filename))
+    # data/ lives at the microsim package root, one level up from this common/ module
+    package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    abs_datafile_path = os.path.normpath(os.path.join(package_root, "data", filename))
     return abs_datafile_path
 
 

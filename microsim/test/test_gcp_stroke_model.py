@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from microsim.person import Person
-from microsim.population import Population
+from microsim.person.person import Person
+from microsim.population.population import Population
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.smoking_status import SmokingStatus
@@ -12,10 +12,10 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.a1c import convert_fasting_glucose_to_a1c
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.cognition_model import GCPStrokeModel
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.outcomes.cognition_outcome import CognitionOutcome
 
 #main idea: construct persons that at some point in their simulation history had a stroke outcome
