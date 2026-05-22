@@ -21,7 +21,7 @@ Person (individual agent)
 - `person.py`: The `Person` class — the core agent. Holds all risk-factor, treatment, outcome, and cognition data for one individual. Implements wave-advance logic and all reporting/query methods.
 - `person_factory.py`: `PersonFactory` — static methods that build `Person` instances from NHANES or Kaiser row data. Handles column-name mapping, bounds enforcement, post-construction initialization (PVD, AFIB, modality, education), and priorToSim outcome seeding.
 - `person_filter.py`: `PersonFilter` — a two-level (dataframe + person-object) filter container. Filters are stored as named callables and applied either before or after Person construction.
-- `person_filter_factory.py`: `PersonFilterFactory` — a factory that returns a pre-populated `PersonFilter` with common trial-eligibility filters already registered.
+- `person_filter_factory.py`: `PersonFilterFactory` — a factory holding a named-filter registry (`filterMap`); builds a `PersonFilter` from a list of filter keys, defaulting to the `adult` (age >= 18) filter.
 - `__init__.py`: Re-exports `Person`, `PersonFactory`, `PersonFilter`, and `PersonFilterFactory` so that `from microsim.person import Person` works. All four names are listed in `__all__`. Internal modules must use concrete-path imports (e.g. `from microsim.person.person import Person`) to avoid circular imports.
 
 ## Person Structure
@@ -143,17 +143,21 @@ The two-level design exists for efficiency: dataframe-level filters avoid constr
 
 ## PersonFilterFactory
 
-`PersonFilterFactory.get_person_filter(addCommonFilters=True)` returns a `PersonFilter` pre-populated with standard trial-eligibility filters:
+`PersonFilterFactory` exposes a class-level registry, `filterMap`, that maps a short string key to a `(filterType, filterFunction)` pair, so pre-defined filters can be requested by name without writing lambdas:
 
-| Level | Name | Criterion |
-|-------|------|-----------|
-| `df` | `lowSBPLimit` | SBP > 126 |
-| `df` | `lowDBPLimit` | DBP > 85 |
-| `df` | `highAntiHypertensivesLimit` | antiHypertensiveCount <= 3 |
-| `person` | `highDemAndCVLimit` | CV model risk < 0.00477 |
-| `person` | `noMCI` | `not person.has_mci(inSim=False)` |
+| Key | Level | Criterion |
+|-----|-------|-----------|
+| `adult` | `df` | age >= 18 |
+| `lowSBPLimit` | `df` | SBP > 126 |
+| `lowDBPLimit` | `df` | DBP > 85 |
+| `highAntiHypertensivesLimit` | `df` | antiHypertensiveCount <= 3 |
+| `highCVLimit` | `person` | one-year CV risk < 0.00477 |
+| `noMCI` | `person` | `not person.has_mci(inSim=False)` |
+| `hasEpilepsy` | `person` | `person.has_epilepsy()` |
 
-Pass `addCommonFilters=False` to get an empty filter if custom filters are needed without defaults.
+`get_person_filter_from_list(filterNames)` builds a `PersonFilter` from any list of these keys (each added under its key as its filter name); an unknown key raises `ValueError`. Pass `[]` for a `PersonFilter` with no filters.
+
+`get_person_filter()` is a convenience wrapper returning the default `PersonFilter`, which holds only the `adult` filter. `PopulationFactory` uses `filterMap["adult"]` as the default NHANES filter when `personFilters is None`.
 
 ## Common Gotchas
 

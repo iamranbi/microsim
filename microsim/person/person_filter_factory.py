@@ -47,19 +47,19 @@ class PersonFilterFactory:
 
         pf = PersonFilterFactory.get_person_filter_from_list(["lowSBPLimit", "highCVLimit"])
 
-    get_person_filter(addCommonFilters=True) is a convenience wrapper that returns the commonFilters
-    subset of the registry.
+    get_person_filter() is a convenience wrapper that returns the default PersonFilter, holding only
+    the "adult" filter.
 
     Setting up your own PersonFilter
     --------------------------------
-    Start from the common trial-eligibility filters and add your own:
+    Start from the default adult filter and add your own:
 
-        pf = PersonFilterFactory.get_person_filter()                  # common filters pre-loaded
+        pf = PersonFilterFactory.get_person_filter()                  # adult (age >= 18) filter only
         pf.add_filter("df", "under80", lambda x: x[DynamicRiskFactorsType.AGE.value] < 80)
 
-    or start empty and register every filter yourself:
+    or start empty (pass an empty list) and register every filter yourself:
 
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter_from_list([])
         pf.add_filter("df", "men", lambda x: x[StaticRiskFactorsType.GENDER.value] == NHANESGender.MALE.value)
         pf.add_filter("person", "noPriorStroke", lambda x: not x.has_stroke_prior_to_simulation())
         pf.rm_filter("df", "men")                                     # remove a filter by name if needed
@@ -94,29 +94,14 @@ class PersonFilterFactory:
             lambda x: x.has_epilepsy()),
     }
 
-    # Filter keys added by get_person_filter(addCommonFilters=True).
-    commonFilters = ["adult", "lowSBPLimit", "lowDBPLimit", "highAntiHypertensivesLimit", "highCVLimit", "noMCI"]
-
     @staticmethod
-    def get_person_filter(addCommonFilters=True):
-        '''Return a PersonFilter.
+    def get_person_filter():
+        '''Return the default PersonFilter: the "adult" (age >= 18) filter only.
 
-        addCommonFilters=True (default) pre-loads the commonFilters subset of filterMap (the standard
-        trial-eligibility filters listed below); addCommonFilters=False returns an empty PersonFilter
-        to which the caller adds every filter.
-
-        Common filters (mirroring typical antihypertensive-trial eligibility):
-            df     "adult"                      age >= 18
-            df     "lowSBPLimit"                SBP > 126
-            df     "lowDBPLimit"                DBP > 85
-            df     "highAntiHypertensivesLimit" antiHypertensiveCount <= 3
-            person "highCVLimit"                one-year CV risk < 0.00477
-            person "noMCI"                       person does not already have MCI at baseline
+        For any other combination of filters use get_person_filter_from_list; pass an empty list to
+        get a PersonFilter with no filters.
         '''
-        if addCommonFilters:
-            return PersonFilterFactory.get_person_filter_from_list(PersonFilterFactory.commonFilters)
-        else:
-            return PersonFilter()
+        return PersonFilterFactory.get_person_filter_from_list(["adult"])
 
     @staticmethod
     def get_person_filter_from_list(filterNames):

@@ -28,9 +28,9 @@ class TestBasicTrialOperations(unittest.TestCase):
     def setUp(self):  
         self.popSize = 100
         self.ageThreshold = 40
-        self.agePf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        self.agePf = PersonFilterFactory.get_person_filter_from_list([])
         self.agePf.add_filter("df", "lowAgeLimit", lambda x: x[DynamicRiskFactorsType.AGE.value]>self.ageThreshold)
-        self.riskPf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        self.riskPf = PersonFilterFactory.get_person_filter_from_list([])
         self.riskPf.add_filter("person",
                                "dementiaLowLimit", 
                                lambda x: DementiaModelRepository().select_outcome_model_for_person(x).get_risk_for_person(x, years=1)>0.00001)

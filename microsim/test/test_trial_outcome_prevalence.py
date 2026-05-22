@@ -101,7 +101,7 @@ class TestKaiserTrialEndToEnd(unittest.TestCase):
         # has no such kwarg. The crash was dormant whenever the initial draw of n
         # persons survived all filters; it only fires when bring_people_to_target_n
         # actually loops, i.e., a person-level filter drops some draws below n.
-        pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
+        pf = PersonFilterFactory.get_person_filter_from_list([])
         pf.add_filter("person", "ageAtLeast60", lambda p: p._age[0] >= 60)
         people = PopulationFactory.get_kaiser_people(n=20, personFilters=pf)
         self.assertEqual(20, people.shape[0])
