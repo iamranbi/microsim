@@ -43,7 +43,7 @@ class TestMCIFilter(unittest.TestCase):
             DefaultTreatmentsType.STATIN.value: 0,
             DynamicRiskFactorsType.CREATININE.value: 0.9,
             "name": "testPerson"}, index=[0])
-        self.pf = PersonFilterFactory.get_person_filter_from_list(["noMCI"])
+        self.pf = PersonFilterFactory.get_person_filter(["noMCI"])
         self.filterFunction = self.pf.filters["person"]["noMCI"]
 
     def test_mci_filter_excludes_person_with_low_gcp(self):

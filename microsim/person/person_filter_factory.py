@@ -42,13 +42,13 @@ class PersonFilterFactory:
         "noMCI"                      person no MCI at baseline
         "hasEpilepsy"                person has epilepsy at baseline
 
-    Pass any subset of these keys to get_person_filter_from_list to obtain a PersonFilter holding
+    Pass any subset of these keys to get_person_filter to obtain a PersonFilter holding
     exactly those filters (each is added under its own key as its filter name):
 
-        pf = PersonFilterFactory.get_person_filter_from_list(["lowSBPLimit", "highCVLimit"])
+        pf = PersonFilterFactory.get_person_filter(["lowSBPLimit", "highCVLimit"])
 
-    get_person_filter() is a convenience wrapper that returns the default PersonFilter, holding only
-    the "adult" filter.
+    get_person_filter() defaults filterNames to ["adult"], so calling it with no arguments returns
+    the default PersonFilter holding only the "adult" filter.
 
     Setting up your own PersonFilter
     --------------------------------
@@ -59,7 +59,7 @@ class PersonFilterFactory:
 
     or start empty (pass an empty list) and register every filter yourself:
 
-        pf = PersonFilterFactory.get_person_filter_from_list([])
+        pf = PersonFilterFactory.get_person_filter([])
         pf.add_filter("df", "men", lambda x: x[StaticRiskFactorsType.GENDER.value] == NHANESGender.MALE.value)
         pf.add_filter("person", "noPriorStroke", lambda x: not x.has_stroke_prior_to_simulation())
         pf.rm_filter("df", "men")                                     # remove a filter by name if needed
@@ -80,7 +80,7 @@ class PersonFilterFactory:
     '''
 
     # Registry of pre-defined filters: string key -> (filterType, filterFunction).
-    # Add an entry here to make a new filter requestable by name via get_person_filter_from_list.
+    # Add an entry here to make a new filter requestable by name via get_person_filter.
     filterMap = {
         "adult": ("df", lambda x: x[DynamicRiskFactorsType.AGE.value]>=18),
         "lowSBPLimit": ("df", lambda x: x[DynamicRiskFactorsType.SBP.value]>126),
@@ -95,24 +95,23 @@ class PersonFilterFactory:
     }
 
     @staticmethod
-    def get_person_filter():
-        '''Return the default PersonFilter: the "adult" (age >= 18) filter only.
-
-        For any other combination of filters use get_person_filter_from_list; pass an empty list to
-        get a PersonFilter with no filters.
-        '''
-        return PersonFilterFactory.get_person_filter_from_list(["adult"])
-
-    @staticmethod
-    def get_person_filter_from_list(filterNames):
+    def get_person_filter(filterNames=None):
         '''Return a PersonFilter holding the pre-defined filters named in filterNames.
 
         filterNames is a list of keys into filterMap; each named filter is added to the returned
         PersonFilter at its registered level ("df" or "person") under its key as the filter name.
         An unknown key raises ValueError listing the available keys.
 
-            pf = PersonFilterFactory.get_person_filter_from_list(["lowSBPLimit", "highCVLimit"])
+        filterNames defaults to ["adult"] (the age >= 18 df filter), so get_person_filter() with no
+        arguments returns the default adult-only PersonFilter. Pass an explicit list to choose a
+        different set, or [] for a PersonFilter with no filters:
+
+            pf = PersonFilterFactory.get_person_filter()                          # adult (age >= 18) only
+            pf = PersonFilterFactory.get_person_filter(["lowSBPLimit", "highCVLimit"])
+            pf = PersonFilterFactory.get_person_filter([])                         # no filters
         '''
+        if filterNames is None:
+            filterNames = ["adult"]
         pf = PersonFilter()
         for filterName in filterNames:
             if filterName not in PersonFilterFactory.filterMap:

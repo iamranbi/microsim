@@ -155,9 +155,9 @@ The two-level design exists for efficiency: dataframe-level filters avoid constr
 | `noMCI` | `person` | `not person.has_mci(inSim=False)` |
 | `hasEpilepsy` | `person` | `person.has_epilepsy()` |
 
-`get_person_filter_from_list(filterNames)` builds a `PersonFilter` from any list of these keys (each added under its key as its filter name); an unknown key raises `ValueError`. Pass `[]` for a `PersonFilter` with no filters.
+`get_person_filter(filterNames=["adult"])` builds a `PersonFilter` from any list of these keys (each added under its key as its filter name); an unknown key raises `ValueError`. `filterNames` defaults to `["adult"]`, so `get_person_filter()` with no arguments returns the default adult-only `PersonFilter`; pass `[]` for a `PersonFilter` with no filters.
 
-`get_person_filter()` is a convenience wrapper returning the default `PersonFilter`, which holds only the `adult` filter. `PopulationFactory` uses `filterMap["adult"]` as the default NHANES filter when `personFilters is None`.
+`PopulationFactory` calls `get_person_filter()` (the adult default) as the default NHANES filter when `personFilters is None`.
 
 ## Common Gotchas
 

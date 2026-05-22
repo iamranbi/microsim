@@ -17,7 +17,7 @@ from microsim.person.person_filter_factory import PersonFilterFactory
 
 
 def _adults_filter():
-    return PersonFilterFactory.get_person_filter_from_list(["adult"])
+    return PersonFilterFactory.get_person_filter()
 
 
 class _StubPrevalenceModel(OutcomePrevalenceBase):

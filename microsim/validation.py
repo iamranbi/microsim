@@ -23,7 +23,7 @@ class Validation:
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=2007, personFilters=None, nhanesWeights=True, distributions=False)
         pop.print_baseline_summary()
         print("2013 Hypertension")
-        pf = PersonFilterFactory.get_person_filter_from_list(["adult"])
+        pf = PersonFilterFactory.get_person_filter()
         pf.add_filter(filterType="df",
                       filterName="lowAntiHypertensiveLimit",
                       filterFunction = lambda x: x[DefaultTreatmentsType.ANTI_HYPERTENSIVE_COUNT.value]>0)
@@ -43,7 +43,7 @@ class Validation:
         popSize = 100000
         pop = PopulationFactory.get_nhanes_population(n=popSize, year=1999, personFilters=None, nhanesWeights=True, distributions=False)
         pop.advance_parallel(nYears, None, nWorkers)
-        pf = PersonFilterFactory.get_person_filter_from_list([])
+        pf = PersonFilterFactory.get_person_filter([])
         pf.add_filter(filterType="df",
                       filterName="lowAge",
                       filterFunction = lambda x: x[DynamicRiskFactorsType.AGE.value]>=36)
@@ -67,7 +67,7 @@ class Validation:
         print("\nVALIDATION OF TREATMENT EFFECTS")
         nYears=5
         nSimulations = 4
-        pf = PersonFilterFactory.get_person_filter_from_list([])
+        pf = PersonFilterFactory.get_person_filter([])
         for bpMedsAdded in [1,2,3,4]:
             miRRList = list()
             strokeRRList = list()
