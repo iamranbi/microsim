@@ -9,7 +9,6 @@ import math
 
 from microsim.person.person_factory import PersonFactory
 from microsim.person.person_filter_factory import PersonFilterFactory
-from microsim.person.person_filter import PersonFilter
 from microsim.population.population import Population
 from microsim.common.age_scope import AgeScope
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType, StaticRiskFactorsType
@@ -253,8 +252,7 @@ class PopulationFactory:
             nhanesDf = nhanesDf.loc[nhanesDf.year == year]
 
         if personFilters is None: #since we started including children in the NHANES df, by default use an adult filter on the df
-            personFilters = PersonFilter()
-            personFilters.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value]>=18)
+            personFilters = PersonFilterFactory.get_person_filter_from_list(["adult"])
         else:
             print("Warning: NHANES populations now include children by default. Add an age filter for adults only.")
 

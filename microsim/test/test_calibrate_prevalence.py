@@ -6,13 +6,10 @@ from microsim.outcomes.outcome_prevalence_model_repository import OutcomePrevale
 from microsim.population.population_factory import PopulationFactory
 from microsim.common.population_type import PopulationType
 from microsim.person.person_filter_factory import PersonFilterFactory
-from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 
 def _adults_filter():
-    pf = PersonFilterFactory.get_person_filter(addCommonFilters=False)
-    pf.add_filter("df", "adults", lambda x: x[DynamicRiskFactorsType.AGE.value] >= 18)
-    return pf
+    return PersonFilterFactory.get_person_filter_from_list(["adult"])
 
 
 def _nhanes_args(n=500):
