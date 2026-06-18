@@ -33,7 +33,7 @@ class TreatmentStrategyRepository:
             pass
         elif name == "sprint":
             repo._repository[TreatmentStrategiesType.BP.value] = SprintTreatment()
-        elif name == "sprintandstain":
+        elif name == "sprintandstatin":
             repo._repository[TreatmentStrategiesType.BP.value] = SprintTreatment()
             repo._repository[TreatmentStrategiesType.STATIN.value] = StatinTreatmentStrategy()
         else:
