@@ -1,6 +1,6 @@
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
-from microsim.regression_model import RegressionModel
-from microsim.data_loader import load_model_spec
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
+from microsim.regression_models.regression_model import RegressionModel
+from microsim.common.data_loader import load_model_spec
 from microsim.outcomes.outcome import OutcomeType, Outcome
 from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 from microsim.outcomes.stroke_details import StrokeSubtypeModelRepository, StrokeNihssModel, StrokeTypeModel
@@ -20,7 +20,7 @@ import scipy.special as scipySpecial
 #.  is just checking on the person object to see if there was a cv outcome in the current year
 #   We now use the 2nd approach, and we will double check that the outcomes are called in the correct order.
 
-class StrokePartitionModel(StatsModelLinearRiskFactorModel):
+class StrokePartitionModel(LinearRiskFactorModel):
     """Fatal stroke probability estimated from our meta-analysis of BASIC, NoMAS, GCNKSS, REGARDS."""
 
     def __init__(self, intercept=None):

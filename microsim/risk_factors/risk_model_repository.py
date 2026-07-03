@@ -1,7 +1,7 @@
-from microsim.statsmodel_linear_risk_factor_model import StatsModelLinearRiskFactorModel
-from microsim.stats_model_linear_probability_risk_factor_model import StatsModelLinearProbabilityRiskFactorModel
-from microsim.stats_model_rounded_linear_risk_factor_model import StatsModelRoundedLinearRiskFactorModel
-from microsim.data_loader import load_regression_model
+from microsim.regression_models.linear_risk_factor_model import LinearRiskFactorModel
+from microsim.regression_models.linear_probability_risk_factor_model import LinearProbabilityRiskFactorModel
+from microsim.regression_models.rounded_linear_risk_factor_model import RoundedLinearRiskFactorModel
+from microsim.common.data_loader import load_regression_model
 from microsim.risk_factors.risk_factor import DynamicRiskFactorsType
 
 class RiskModelRepository:
@@ -83,12 +83,12 @@ class RiskModelRepository:
 
     def _initialize_linear_risk_model(self, referenceName, modelName, log=False):
         model = load_regression_model(modelName)
-        self._repository[referenceName] = StatsModelLinearRiskFactorModel(model, log)
+        self._repository[referenceName] = LinearRiskFactorModel(model, log)
 
     def _initialize_linear_probability_risk_model(self, referenceName, modelName):
         model = load_regression_model(modelName)
-        self._repository[referenceName] = StatsModelLinearProbabilityRiskFactorModel(model)
+        self._repository[referenceName] = LinearProbabilityRiskFactorModel(model)
 
     def _initialize_int_rounded_linear_risk_model(self, referenceName, modelName):
         model = load_regression_model(modelName)
-        self._repository[referenceName] = StatsModelRoundedLinearRiskFactorModel(model)
+        self._repository[referenceName] = RoundedLinearRiskFactorModel(model)

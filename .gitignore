@@ -186,3 +186,8 @@ tags
 !.vscode/settings.example.json
 .DS_Store
 microsim/.DS_Store
+
+#####=== Claude Code ===#####
+# machine-local config + runtime state (keep a shared settings.json committable)
+.claude/*
+!.claude/settings.json

@@ -12,6 +12,10 @@ class WMHSeverity(Enum):
     MODERATE = "moderate"
     SEVERE = "severe"
 
+#Map to be used for the classification of person objects regarding the WMH outcome.
+#This serves as the categorical variable to be used later on with regression.
+wmhSeverityGroupMap = {WMHSeverity.NO.value: 0, 'unknown': 1, WMHSeverity.MILD.value: 2, WMHSeverity.MODERATE.value: 3, WMHSeverity.SEVERE.value: 4}
+
 class WMHSeverityMRModel():
     """This is the WMH severity model for persons with MR as their modality.
     This is an ordered logistic model."""

@@ -34,7 +34,7 @@ Dynamic risk factors evolve over time according to statistical models and are up
 - **Metabolic**: `a1c` (glycated hemoglobin), `bmi` (body mass index)
 - **Lipids**: `hdl`, `ldl`, `trig` (triglycerides), `totChol` (total cholesterol)
 - **Cardiovascular**: `afib` (atrial fibrillation, see `afib_model.py`), `pvd` (peripheral vascular disease, see `pvd_model.py`)
-- **Behavioral**: `physicalActivity`, `alcoholPerWeek` (see `alcohol_model.py`, `alcohol_category.py`)
+- **Behavioral**: `anyPhysicalActivity`, `alcoholPerWeek` (see `alcohol_model.py`, `alcohol_category.py`)
 - **Anthropometric**: `waist` (waist circumference, see `waist_model.py`)
 - **Renal**: `creatinine`
 
@@ -44,7 +44,7 @@ Risk factors are categorized as either:
 - **Categorical**: Discrete categories (e.g., gender, race, education, smoking status)
 - **Continuous**: Numeric values (e.g., age, blood pressure, cholesterol, BMI)
 
-This distinction affects how they are modeled and used in outcome predictions. See `risk_factor.py` for the full enumeration and category definitions.
+This distinction affects how they are modeled and used in outcome predictions. See `risk_factor.py` for the full enumeration and category definitions (`CategoricalRiskFactorsType`, `ContinuousRiskFactorsType`).
 
 ## Model Implementations
 
@@ -52,23 +52,23 @@ This distinction affects how they are modeled and used in outcome predictions. S
 
 The framework supports multiple statistical model types for risk factor prediction:
 
-1. **Linear Models**: `StatsModelLinearRiskFactorModel`
+1. **Linear Models**: `LinearRiskFactorModel`
    - For continuous outcomes with normal distributions
    - Used for: Blood pressure, cholesterol, BMI, etc.
 
-2. **Logistic Models**: `StatsModelLogisticRiskFactorModel`
+2. **Logistic Models**: `LogisticRiskFactorModel`
    - For binary outcomes
    - Used for: Afib, PVD, smoking status transitions
 
-3. **Cox Proportional Hazards**: `StatsModelCoxModel`
+3. **Cox Proportional Hazards**: `CoxRiskFactorModel`
    - For time-to-event outcomes
    - Used for: First occurrence of conditions
 
-4. **Specialized Models**:
-   - `NHANESLinearRiskFactorModel`: NHANES-specific linear models
-   - `LogLinearRiskFactorModel`: Log-transformed linear models
+4. **Specialized Models** (live in `risk_factors/`, not `regression_models/`):
+   - `NHANESLinearRiskFactorModel` (`nhanes_linear_risk_factor_model.py`): legacy NHANES pickle-based linear model
+   - `LogLinearRiskFactorModel` (`log_linear_risk_factor_model.py`): log-transformed variant of `NHANESLinearRiskFactorModel`
 
-Model implementations are found in the root directory (`statsmodel_*_risk_factor_model.py` files).
+`LinearRiskFactorModel`, `LogisticRiskFactorModel`, and `CoxRiskFactorModel` are in `microsim/regression_models/`.
 
 ### Model Specification Files
 
@@ -81,9 +81,11 @@ These JSON specifications are loaded by the model repositories and used to param
 
 ## Key Files in This Module
 
-- `risk_factor.py`: Core enumerations (DynamicRiskFactorsType, StaticRiskFactorsType, RiskFactorCategory)
-- `risk_model_repository.py`: Dynamic risk factor model repository
-- `cohort_risk_model_repository.py`: Cohort-specific risk model configurations
+- `risk_factor.py`: Core enumerations (DynamicRiskFactorsType, StaticRiskFactorsType, CategoricalRiskFactorsType, ContinuousRiskFactorsType)
+- `risk_model_repository.py`: Base `RiskModelRepository` with bounds enforcement and model initialization helpers
+- `cohort_risk_model_repository.py`: Cohort-specific repositories (`CohortDynamicRiskFactorModelRepository`, `CohortStaticRiskFactorModelRepository`, and the helper `AlcoholCategoryModel`)
+- `nhanes_risk_model_repository.py`: NHANES-specific `NHANESRiskModelRepository` (uses legacy pickle-based models for SBP, DBP, HDL, BMI, totChol, A1C)
+- `initialization_model_repository.py`: `InitializationModelRepository` — seeds PVD, AFIB, WAIST, EDUCATION, ALCOHOL, MODALITY at Person construction
 - Individual model files:
   - `age_model.py`: Age progression
   - `afib_model.py`: Atrial fibrillation
@@ -92,6 +94,10 @@ These JSON specifications are loaded by the model repositories and used to param
   - `alcohol_model.py`: Alcohol consumption
   - `education_model.py`: Education (initialization)
   - `modality_model.py`: MRI modality (initialization)
+  - `nhanes_linear_risk_factor_model.py`: `NHANESLinearRiskFactorModel` — NHANES-specific linear model (legacy pickle-based)
+  - `log_linear_risk_factor_model.py`: `LogLinearRiskFactorModel` — log-transformed variant of `NHANESLinearRiskFactorModel`
+  - `a1c.py`: Utility functions to convert between fasting glucose and A1C (`convert_fasting_glucose_to_a1c`, `convert_a1c_to_fasting_glucose`)
+  - `gfr_equation.py`: `GFREquation` — CKD-EPI glomerular filtration rate calculation
 - Demographic enums:
   - `gender.py`: Gender categories
   - `race_ethnicity.py`: Race/ethnicity categories
@@ -121,13 +127,15 @@ When a Person is advanced in time, dynamic risk factors are updated using the mo
 Risk factors follow the Repository Pattern:
 
 ```
-RiskModelRepository (risk_model_repository.py)
-  ↓ contains
-Statistical models for each dynamic risk factor
-  ↓ parameterized by
-CohortRiskModelRepository (cohort_risk_model_repository.py)
+RiskModelRepository (risk_model_repository.py)  ← base class
+  ↓ subclassed by
+CohortDynamicRiskFactorModelRepository (cohort_risk_model_repository.py)
   ↓ loads from
-data/*CohortModelSpec.json
+data/*CohortModelSpec.json (via load_regression_model)
+
+NHANESRiskModelRepository (nhanes_risk_model_repository.py)
+  ↓ loads from
+data/*.pickle (legacy NHANES OLS models)
 ```
 
 Repositories are accessed through the Population's `PopulationRepositoryType.DYNAMIC_RISK_FACTORS` or `PopulationRepositoryType.STATIC_RISK_FACTORS` enum.
@@ -144,7 +152,7 @@ To modify risk factor model coefficients or parameters:
    - Ensure JSON structure matches expected schema
 
 2. **Modify model implementations**:
-   - Edit `statsmodel_*_risk_factor_model.py` files in the root directory
+   - Edit `*_risk_factor_model.py` files in `microsim/regression_models/`
    - Update model logic, transformations, or estimation methods
 
 3. **Update risk factor enumerations**:
@@ -188,11 +196,11 @@ Risk factors are automatically transformed into model arguments using `model_arg
 
 ### Testing Risk Factor Models
 
-Risk factor tests are typically found in `test/test_risk_factors.py` or similar test files. Common test patterns:
+Risk factor tests are found in `test/test_risk_model_repository.py`, `test/test_linear_risk_factor_model.py`, `test/test_nhanes_linear_risk_factor_model.py`, and related files. Common test patterns:
 
 ```python
 import unittest
-from microsim.population_factory import PopulationFactory
+from microsim.population import PopulationFactory
 
 class TestRiskFactorModel(unittest.TestCase):
     def setUp(self):
@@ -211,4 +219,4 @@ class TestRiskFactorModel(unittest.TestCase):
 - **Outcome models**: `../outcomes/` (outcomes depend on risk factors for predictions)
 - **Treatment strategies**: `../treatment_strategies/` (treatments modify risk factors)
 - **Person class**: `../person.py` (risk factor storage and evolution)
-- **Model argument transformation**: `../model_argument_transform.py` (risk factor usage in models)
+- **Model argument transformation**: `../regression_models/model_argument_transform.py` (risk factor usage in models)

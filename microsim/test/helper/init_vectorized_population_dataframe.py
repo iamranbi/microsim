@@ -2,8 +2,8 @@ from typing import List
 
 import pandas as pd
 
-from microsim.person import Person
-from microsim.population import Population
+from microsim.person.person import Person
+from microsim.population.population import Population
 from microsim.outcomes.cognition_model import GCPModel
 
 

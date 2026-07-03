@@ -1,14 +1,13 @@
 from functools import reduce
 import numpy as np
-from microsim.model_argument_transform import get_all_argument_transforms
+from microsim.regression_models.model_argument_transform import get_all_argument_transforms
 
-# TODO: this class needs to be renamed. its no longer interfacing with statsmodel
-# conceptually, what it does now is bridge the regression model and the person
+# conceptually, what this class does is bridge the regression model and the person
 
 INTERACTION_INDICATOR = "#"
 
 
-class StatsModelLinearRiskFactorModel:
+class LinearRiskFactorModel:
     def __init__(self, regression_model, log_transform=False):
         self.standard_errors = regression_model._coefficient_standard_errors
         self.log_transform = log_transform

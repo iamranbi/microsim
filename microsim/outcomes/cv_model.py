@@ -1,6 +1,6 @@
 from microsim.outcomes.ascvd_outcome_model import ASCVDOutcomeModel
-from microsim.regression_model import RegressionModel
-from microsim.data_loader import load_model_spec
+from microsim.regression_models.regression_model import RegressionModel
+from microsim.common.data_loader import load_model_spec
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.outcome_prevalence_base import OutcomePrevalenceBase
 from microsim.risk_factors.race_ethnicity import RaceEthnicity

@@ -1,6 +1,6 @@
-from microsim.population_factory import PopulationFactory
+from microsim.population.population_factory import PopulationFactory
 from microsim.trials.trial_type import TrialType
-from microsim.population import Population
+from microsim.population.population import Population
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType, TreatmentStrategyStatus
 from microsim.trials.trial_outcome_assessor import AnalysisType
 

@@ -1,9 +1,9 @@
 import unittest
 
 from microsim.trials.trial_description import KaiserTrialDescription
-from microsim.population_factory import PopulationFactory
-from microsim.population import Population
-from microsim.population_model_repository import PopulationRepositoryType
+from microsim.population.population_factory import PopulationFactory
+from microsim.population.population import Population
+from microsim.population.population_model_repository import PopulationRepositoryType
 from microsim.outcomes.outcome import OutcomeType
 
 

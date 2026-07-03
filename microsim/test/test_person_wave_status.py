@@ -1,4 +1,4 @@
-from microsim.person import Person
+from microsim.person.person import Person
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.outcomes.outcome_model_repository import OutcomeModelRepository
@@ -9,14 +9,13 @@ from microsim.risk_factors.education import Education
 from microsim.test.test_risk_model_repository import TestRiskModelRepository
 from microsim.outcomes.cognition_model import GCPModel
 from microsim.outcomes.dementia_model import DementiaModel
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.risk_factors.smoking_status import SmokingStatus
 from microsim.test.outcome_models_repositories import *
 from microsim.default_treatments.default_treatments import DefaultTreatmentsType
 from microsim.risk_factors.risk_factor import StaticRiskFactorsType, DynamicRiskFactorsType
-from microsim.population_factory import PopulationFactory
-from microsim.static_risk_factor_over_time_repository import StaticDefaultTreatmentModelRepository, StaticRiskFactorOverTimeRepository
+from microsim.population.population_factory import PopulationFactory
 from microsim.risk_factors.cohort_risk_model_repository import (CohortDynamicRiskFactorModelRepository,
                                                    CohortStaticRiskFactorModelRepository)
 from microsim.default_treatments.default_treatment_model_repository import DefaultTreatmentModelRepository

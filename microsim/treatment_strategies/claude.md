@@ -41,7 +41,7 @@ Located in `bp_treatment_strategies.py`, includes:
 
 **SPRINT Trial Variants:**
 - `SprintTreatment`: SPRINT protocol (CV risk > 7.5%, target SBP=126, DBP=85)
-- `SprintForLowerDbpGoal`: SPRINT with DBP=65
+- `SprintForLowerDbpGoalTreatment`: SPRINT with DBP=65
 - `SprintForSbpOnlyTreatment`: SBP-only goal
 - `SprintForSbpRiskThreshold`: SBP-only with custom risk threshold
 
@@ -68,7 +68,7 @@ Located in `statin_treatment_strategies.py`:
 
 ```python
 # Example usage
-statin_strategy = StatinTreatmentStrategy(risk_cutoff=0.075)
+statin_strategy = StatinTreatmentStrategy(cvRiskCutoff=0.075)
 ```
 
 ### WMD Treatment Strategies
@@ -88,8 +88,8 @@ All follow same pattern:
 ## Key Files in This Module
 
 ### Core Infrastructure
-- `treatment_strategies.py`: Base classes, enums (TreatmentStrategiesType, TreatmentStrategyStatus, CategoricalTreatmentStrategiesType)
-- `treatment_strategy_repository.py`: Repository pattern (maps strategy type → strategy instance)
+- `treatment_strategies.py`: Base classes, enums (TreatmentStrategiesType, TreatmentStrategyStatus, CategoricalTreatmentStrategiesType, ContinuousTreatmentStrategiesType)
+- `treatment_strategy_repository.py`: Repository pattern (maps strategy type → strategy instance); also exposes `from_string()` factory
 
 ### Strategy Implementations
 - `bp_treatment_strategies.py`: 11+ BP treatment protocols
@@ -108,6 +108,7 @@ The treatment strategies module uses the **Strategy Pattern** with a state-based
 - Dictionary mapping TreatmentStrategiesType values → strategy instances
 - Initialized with None values for each strategy type
 - Populated at runtime with specific strategy instances
+- `from_string(name)` class method: convenience factory for common BP strategies; recognized names: `"1bpMedsAdded"`, `"2bpMedsAdded"`, `"3bpMedsAdded"`, `"4bpMedsAdded"`, `"toGoal120"`, `"sprint"`, `"noTreatment"`
 
 ### 2. Strategy Interface
 
@@ -116,7 +117,7 @@ All strategies implement two core methods:
 ```python
 def get_updated_treatments(self, person):
     """Return dictionary of treatment updates to apply"""
-    return {}  # e.g., {"bpMedsAdded": 2, "statinsAdded": 1}
+    return {}  # e.g., {"bpMedsAdded": 2}
 
 def get_updated_risk_factors(self, person):
     """Return dictionary of risk factor updates to apply"""
@@ -125,8 +126,8 @@ def get_updated_risk_factors(self, person):
 
 ### 3. Status Lifecycle State Machine
 
-From `TreatmentStrategyStatus` enum:
-- **None**: Not participating in strategy
+From `TreatmentStrategyStatus` enum (members: `BEGIN`, `MAINTAIN`, `END`) and Python `None`:
+- **None** (Python `None`, not an enum member): Not participating in strategy
 - **BEGIN**: First wave of participation (initial application)
 - **MAINTAIN**: Continuing participation (ongoing application)
 - **END**: Final wave of participation (cleanup)
@@ -136,7 +137,7 @@ From `TreatmentStrategyStatus` enum:
 None → BEGIN → MAINTAIN → MAINTAIN → ... → END → None
 ```
 
-Managed by `person.update_treatment_strategy_status()` (person.py lines 166-179)
+Managed by `person.update_treatment_strategy_status()` (person.py)
 
 ## Integration with Person Class
 
@@ -146,7 +147,7 @@ Treatment strategies stored in `Person._treatmentStrategies`:
 ```python
 person._treatmentStrategies = {
     "bp": {"status": MAINTAIN, "bpMedsAdded": 2},
-    "statin": {"status": BEGIN, "statinsAdded": 1},
+    "statin": {"status": BEGIN, "statinMedsAdded": 1},
     "wmd15": {"status": None},
     "wmd20": {"status": None},
     "wmd25": {"status": None}
@@ -155,26 +156,28 @@ person._treatmentStrategies = {
 
 ### Core Methods (person.py)
 
-**Orchestration (lines 149-164):**
+**Orchestration:**
 - `advance_treatment_strategies_and_update_risk_factors()`: Main entry point
   - Calls update_treatment_strategy_status()
   - Calls update_treatments() for each strategy
   - Calls update_risk_factors() for each strategy
 
-**Status Management (lines 166-179):**
+**Status Management:**
 - `update_treatment_strategy_status()`: State machine implementation
   - None → BEGIN: When strategy starts
   - BEGIN → MAINTAIN: After first application
   - MAINTAIN → END: When strategy ends
   - END → None: After cleanup wave
 
-**Update Application (lines 181-192):**
+**Update Application:**
 - `update_treatments()`: Apply get_updated_treatments() results
 - `update_risk_factors()`: Apply get_updated_risk_factors() results
 
-**Query Methods (lines 194-210):**
-- `is_in_treatment_strategy(strategy_type)`: Check if participating (status != None)
-- `has_meds_added(strategy_type)`: Check if actively receiving meds
+**Query Methods:**
+- `is_in_treatment_strategy(strategy_type)`: Check if participating (status is not None)
+- `is_in_any_treatment_strategy()`: Check if participating in any strategy
+- `has_meds_added(strategy_type)`: Check if actively receiving meds (medsAdded > 0)
+- `get_meds_added(strategy_type)`: Return the count of meds added for the strategy
 - `get_treatment_strategies_with_participation()`: List active strategies
 - `get_treatment_strategies_with_meds_added()`: List strategies with meds
 - `_antiHypertensiveCountPlusBPMedsAdded()`: Combined BP med count (for max cap)
@@ -194,7 +197,7 @@ _treatmentStrategies = {
 
 ## Integration with Population Class
 
-### Population-Level Methods (population.py lines 546-760)
+### Population-Level Methods (population.py)
 
 **Participation Tracking:**
 - `is_in_treatment_strategy(strategy_type)`: Map across all people
@@ -248,19 +251,7 @@ Complete workflow:
        NEW_TREATMENT = "new_treatment"  # Add here
    ```
 
-3. **Register in TreatmentStrategyRepository** (treatment_strategy_repository.py):
-   ```python
-   from microsim.treatment_strategies.new_treatment_strategies import NewTreatmentStrategy
-
-   class TreatmentStrategyRepository:
-       def __init__(self):
-           self._repository = {
-               TreatmentStrategiesType.BP.value: None,
-               TreatmentStrategiesType.STATIN.value: None,
-               ...
-               TreatmentStrategiesType.NEW_TREATMENT.value: None,  # Add here
-           }
-   ```
+3. **No manual repository change needed**: `TreatmentStrategyRepository.__init__` iterates `TreatmentStrategiesType` automatically, so adding the new member to the enum is sufficient. The new entry will be initialized to `None` at construction time.
 
 4. **Update PersonFactory** to initialize new strategy (person_factory.py):
    - Add key to _treatmentStrategies dict initialization
@@ -295,7 +286,7 @@ Complete workflow:
 
 **Population-level application:**
 ```python
-from microsim.population_factory import PopulationFactory
+from microsim.population import PopulationFactory
 from microsim.treatment_strategies.treatment_strategy_repository import TreatmentStrategyRepository
 from microsim.treatment_strategies.bp_treatment_strategies import SprintTreatment
 
@@ -310,7 +301,7 @@ treatment_strategies._repository[TreatmentStrategiesType.BP.value] = SprintTreat
 population.advance(years=10, treatment_strategies=treatment_strategies)
 
 # Check participation
-bp_participation = population.is_in_treatment_strategy(TreatmentStrategiesType.BP)
+bp_participation = population.is_in_treatment_strategy(TreatmentStrategiesType.BP.value)
 print(f"BP strategy participation: {sum(bp_participation)} people")
 ```
 
@@ -321,14 +312,14 @@ See `microsim/trials/claude.md` for comparing multiple treatment strategies in c
 
 **From Person instances:**
 ```python
-# Check if person in strategy
-if person.is_in_treatment_strategy(TreatmentStrategiesType.BP):
+# Check if person in strategy (pass the string value, not the enum member)
+if person.is_in_treatment_strategy(TreatmentStrategiesType.BP.value):
     bp_strategy = person._treatmentStrategies["bp"]
     print(f"Status: {bp_strategy['status']}")
     print(f"BP meds added: {bp_strategy.get('bpMedsAdded', 0)}")
 
 # Check active medication addition
-if person.has_meds_added(TreatmentStrategiesType.BP):
+if person.has_meds_added(TreatmentStrategiesType.BP.value):
     print("Person actively receiving BP meds from strategy")
 
 # Get all active strategies
@@ -337,8 +328,8 @@ active_strategies = person.get_treatment_strategies_with_participation()
 
 **From Population instances:**
 ```python
-# Count participation
-participation = population.is_in_treatment_strategy(TreatmentStrategiesType.BP)
+# Count participation (pass the string value, not the enum member)
+participation = population.is_in_treatment_strategy(TreatmentStrategiesType.BP.value)
 participation_count = sum(participation)
 
 # Print distributions

@@ -1,5 +1,5 @@
 import json
-from microsim.regression_model import RegressionModel
+from microsim.regression_models.regression_model import RegressionModel
 
 
 class CoxRegressionModel(RegressionModel):

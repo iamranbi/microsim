@@ -7,7 +7,8 @@ from microsim.risk_factors.race_ethnicity import RaceEthnicity
 from microsim.risk_factors.education import Education
 from microsim.risk_factors.gender import NHANESGender
 from microsim.risk_factors.alcohol_category import AlcoholCategory
-from microsim.person import Person
+from microsim.risk_factors.a1c import convert_a1c_to_fasting_glucose
+from microsim.person.person import Person
 from microsim.treatment_strategies.treatment_strategies import TreatmentStrategiesType
 from collections import OrderedDict
 
@@ -322,8 +323,8 @@ class GCPStrokeModel:
                 meanLdl=np.array(person._ldl[waveAtLastStroke+1:]).mean(),
                 gfr=person._gfr,
                 meanWaistPrestroke=np.mean(np.array(person._waist[:waveAtLastStroke+1])),
-                meanFastingGlucose=Person.convert_a1c_to_fasting_glucose(np.array(person._a1c[waveAtLastStroke+1:]).mean()),
-                meanFastingGlucosePrestroke=Person.convert_a1c_to_fasting_glucose(np.array(person._a1c[:waveAtLastStroke+1]).mean()),
+                meanFastingGlucose=convert_a1c_to_fasting_glucose(np.array(person._a1c[waveAtLastStroke+1:]).mean()),
+                meanFastingGlucosePrestroke=convert_a1c_to_fasting_glucose(np.array(person._a1c[:waveAtLastStroke+1]).mean()),
                 anyAntiHypertensive=person._any_antiHypertensive,
                 #Q: how to deal with otherLipidlowering meds? We used to use this attribute but now that I have not
                 #   included a treatment model for this (and I think I do not even bring it in from NHANES)

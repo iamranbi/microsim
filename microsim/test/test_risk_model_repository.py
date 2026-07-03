@@ -1,6 +1,6 @@
 from microsim.risk_factors.risk_model_repository import RiskModelRepository
-from microsim.nhanes_linear_risk_factor_model import NHANESLinearRiskFactorModel
-from microsim.static_risk_factor_over_time_repository import DoNothingModel
+from microsim.risk_factors.nhanes_linear_risk_factor_model import NHANESLinearRiskFactorModel
+from microsim.test.static_risk_factor_over_time_repository import DoNothingModel
 
 import pandas as pd
 import numpy as np

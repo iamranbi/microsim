@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 
-from microsim.person_factory import PersonFactory
+from microsim.person.person_factory import PersonFactory
 from microsim.risk_factors.initialization_model_repository import InitializationModelRepository
 from microsim.outcomes.outcome import Outcome, OutcomeType
 from microsim.outcomes.chronic_kidney_disease_model import ChronicKidneyDiseaseModel
