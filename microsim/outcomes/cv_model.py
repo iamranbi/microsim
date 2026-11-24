@@ -87,9 +87,7 @@ class CVModelBase(ASCVDOutcomeModel):
         return cvRisk
 
     def get_late_onset_epilepsy_cv_multiplier(self, person):
-        p = self._strokePartitionModel.get_next_stroke_probability(
-            person, lateOnsetEpilepsyAdjusted=False
-        )
+        p = self._strokePartitionModel.get_next_stroke_probability(person)
         return p * self._loe_stroke_hr + (1 - p) * self._loe_mi_hr
 
     def generate_next_outcome(self, person):
